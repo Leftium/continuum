@@ -10,55 +10,51 @@ This repository uses the Continuum multi-agent workflow.
 ## Start here
 
 Humans:
-- Issues: <issues-url>
-- Pull requests: <pull-requests-url>
-- Milestones: <milestones-url>
+- Issues: {{issues_url}}
+- Pull requests: {{pull_requests_url}}
+- Milestones: {{milestones_url}}
 
 Agents:
 1. Read this file before coordinating or modifying work.
 2. Inspect open Continuum issues and pull requests.
-3. Do not modify repository files unless you hold the active write lease.
-4. A draft implementation pull request represents the active write lease.
-5. A ready pull request means writes have stopped and review/handoff may begin.
-6. Live workflow state belongs in GitHub; do not duplicate mutable state in this file.
-7. Treat current Git/GitHub state plus tracked project policy as authoritative over stale or private handoff prose.
+3. Treat current Git/GitHub state plus tracked project policy as authoritative over stale or private handoff prose.
+4. Do not modify an implementation branch unless you hold its write lease.
+5. Live workflow state belongs in GitHub; do not duplicate mutable state in this file.
 
 ## Repository conventions
 
 - The `continuum` label identifies Continuum workflow issues.
-- GitHub milestones group larger outcomes.
 - GitHub issues are the canonical units of work.
+- GitHub milestones optionally group larger outcomes.
 - Issue relationships express ordering and dependencies; avoid sequence numbers when possible.
 - Create implementation branches and pull requests only when work actually starts.
 - Prefer the GitHub connector when available. If a required operation is unavailable, give the human an exact `gh` CLI command.
 
-## Write lease
+## Write leases
 
-The implementation PR is the lease signal.
+A lease is scoped to one implementation branch/PR. Independent draft PRs may coexist.
 
-- **Draft PR**: one agent may write to the implementation branch.
-- **Ready PR**: no agent should write; review/handoff is pending.
-- Before writing, verify the PR is draft and that the current handoff identifies you as the writer.
-- Before releasing the lease, commit and push all intended changes, verify the branch state, update the handoff, then mark the PR ready.
-- Agents that do not hold the lease may inspect and review but must not write.
+- **Acquiring**: before a PR exists, record the intended writer in the issue. That claim authorizes creating the branch, first commit, push, and draft PR.
+- **Draft PR**: one recorded writer may modify that implementation branch. The draft PR supersedes the acquisition claim as the lease signal.
+- **Ready PR**: writes to that implementation branch have stopped; review/handoff may proceed.
+- Agents that do not hold a branch's lease may inspect and review it but must not write to it.
+- Concurrent leases are allowed unless issue dependencies or project policy make the work unsafe to overlap.
 
-This is initially a cooperative convention rather than an atomic distributed lock. If real write collisions appear, the protocol may add stronger lease mechanics without changing the human-visible Draft/Ready signal.
+Before releasing a lease, commit and push all intended changes, verify the branch state, update the durable handoff, then mark the PR ready.
+
+If review requests changes, record the writer and convert that PR back to draft before modifying its branch. Other implementation PRs are unaffected.
+
+This is a cooperative convention rather than an atomic distributed lock. Stronger mechanics may be added later without changing Draft/Ready as the human-visible signal.
 
 ## Issue lifecycle
 
-A Continuum issue should describe:
-- goal;
-- relevant context and durable decisions;
-- constraints and preserved behavior;
-- acceptance criteria;
-- dependencies or blocking relationships;
-- current handoff when active.
+A Continuum issue should describe the goal, relevant durable context and decisions, constraints, acceptance criteria, dependencies, and current handoff when active.
 
 When implementation begins:
-1. create a fresh branch from the accepted base;
-2. create a draft PR linked to the issue;
-3. record the current writer/handoff;
-4. perform the work while the PR remains draft.
+1. record the intended writer in the issue;
+2. create a fresh branch from the accepted base and make the initial commit;
+3. create a draft PR linked to the issue;
+4. continue work while that PR remains draft.
 
 When implementation finishes:
 1. verify the work;
@@ -67,45 +63,14 @@ When implementation finishes:
 4. review and merge;
 5. close the issue when its acceptance criteria are satisfied.
 
-## Workflow state
-
-A fresh capable agent should be able to reconstruct the current state and next action from shared repository/GitHub state plus tracked project policy.
-
-- Git/GitHub live state and tracked policy are authoritative.
-- Handoff prose provides context but does not override current shared state.
-- Workflow roles such as implementation, review, and verification belong to work stages, not permanent agent identities.
-- Changing agents does not itself change workflow state.
-- Project policy may impose relational constraints, such as requiring review independent from the implementation run.
-
-For the standard lifecycle:
-
-```text
-open ready issue, no implementation PR
-  -> implementation may begin
-
-draft implementation PR
-  -> implementation is active; recorded writer holds the lease
-
-ready implementation PR
-  -> writing has stopped; review/handoff may begin
-
-review requests changes
-  -> fixes are required before merge
-
-merged implementation PR
-  -> verify acceptance criteria and advance/close the issue
-```
-
-Blocked work remains blocked regardless of which agent is available.
-
 ## Recovery
 
 When returning after an absence:
-1. open the current GitHub milestone;
-2. inspect its open Continuum issues;
+1. inspect open Continuum issues;
+2. inspect milestone grouping when an issue has one;
 3. identify blocked/ready work from issue relationships;
-4. inspect any linked PR;
-5. interpret Draft as active write ownership and Ready as review/handoff.
+4. inspect linked PRs;
+5. interpret each Draft PR as an active branch-scoped lease and each Ready PR as write-stopped review/handoff state.
 
 Branches are implementation artifacts, not the project dashboard.
 
@@ -119,7 +84,7 @@ gh label create continuum \
   --color 5319E7
 ```
 
-Create GitHub milestones as needed:
+Create GitHub milestones only when useful for grouping:
 
 ```sh
 gh api --method POST repos/{owner}/{repo}/milestones \
@@ -130,4 +95,5 @@ Prefer native GitHub issue dependency/sub-issue relationships when available thr
 
 ## Protocol
 
-For the protocol specification and migration guidance, see the Continuum project documentation.
+For the protocol specification and migration guidance, see:
+https://github.com/Leftium/continuum/blob/main/specs/001-continuum.md
