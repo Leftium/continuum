@@ -7,7 +7,7 @@ Draft specification for a GitHub-native workflow that coordinates humans and cod
 ## Goals
 
 Continuum should:
-- make current project state reconstructable from repository + GitHub state after long absences;
+- make current project state reconstructable from repository and GitHub state after long absences;
 - support multiple agents without requiring shared hidden context;
 - support safe concurrent work on independent issues;
 - make handoffs durable and explicit;
@@ -37,7 +37,7 @@ Milestones should use descriptive names rather than ordinal identifiers whenever
 
 A GitHub issue is the canonical Continuum unit of work.
 
-An issue may represent implementation, investigation, modernization, comparison, documentation, or another bounded outcome. Issues should be ordered by native dependency/blocking relationships where available rather than by embedded sequence numbers.
+An issue may represent implementation, investigation, modernization, comparison, documentation, or another bounded outcome. Issues should be ordered by native dependency and blocking relationships where available rather than by embedded sequence numbers.
 
 ### Agent run
 
@@ -55,12 +55,12 @@ Implementation branches and PRs should be created only when work starts. Future 
 
 A write lease grants one recorded writer exclusive permission to modify one implementation branch.
 
-Continuum 0.1.0 uses PR Draft/Ready state as the normal cooperative lease signal:
+Continuum 0.1.0 uses PR Draft and Ready states as the normal cooperative lease signals:
 
 - Draft = the PR's implementation branch has an active write lease.
 - Ready = that branch's lease is released; review or handoff may proceed.
 
-Leases are PR/branch-scoped, not repository-wide. Multiple draft implementation PRs may coexist when their work can safely proceed concurrently.
+Each lease is scoped to one implementation branch and its PR, not the repository. Multiple draft implementation PRs may coexist when their work can safely proceed concurrently.
 
 The lease owner must be identified durably in the issue or PR handoff. Non-owners may inspect and review the branch but must not write to it.
 
@@ -90,7 +90,7 @@ When review requires fixes:
 
 Other PR-scoped leases are unaffected.
 
-This convention is intentionally soft in 0.1.0. A future version may add an atomic ref-backed or API-backed lease while retaining Draft/Ready as the human-visible state.
+This convention is intentionally soft in 0.1.0. A future version may add an atomic ref-backed or API-backed lease while retaining Draft and Ready as the human-visible state.
 
 ## State model
 
@@ -98,14 +98,14 @@ Typical lifecycle for one issue:
 
 ```text
 open ready issue
-  -> acquisition claim / writer recorded
+  -> acquisition claim; writer recorded
   -> branch + initial commit
-  -> draft PR / branch lease held
-  -> ready PR / branch lease released
+  -> draft PR; branch lease held
+  -> ready PR; branch lease released
       -> approved -> merged
       -> changes requested
           -> writer recorded
-          -> draft PR / branch lease reacquired
+          -> draft PR; branch lease reacquired
           -> ready PR
   -> merged PR
   -> issue acceptance verified
@@ -114,7 +114,7 @@ open ready issue
 
 Several issues may occupy the draft-PR state concurrently when dependencies and project policy permit.
 
-Blocked work remains an open issue with native dependency/blocking relationships where possible.
+Blocked work remains an open issue with native dependency and blocking relationships where possible.
 
 ## Authoritative state and inference
 
@@ -123,8 +123,8 @@ Continuum state should be reconstructable from shared repository and GitHub stat
 The precedence is:
 
 ```text
-Git/GitHub live state
-  + tracked Continuum/project policy
+Git and GitHub live state
+  + tracked Continuum or project policy
   = authoritative workflow state
 
 handoff prose
@@ -158,13 +158,13 @@ draft implementation PR
   -> implementation is active; recorded writer owns that branch's lease
 
 ready implementation PR
-  -> that branch is write-stopped; review/handoff may begin
+  -> that branch is write-stopped; review or handoff may begin
 
 review requests changes
   -> record writer, convert that PR to draft, then implement fixes
 
 merged implementation PR
-  -> verify issue acceptance criteria and close/advance dependencies
+  -> verify issue acceptance criteria; if they are satisfied, close the issue and reassess downstream dependencies
 ```
 
 Blocked issues remain blocked regardless of agent availability. Project policy may add stages or constraints, but should do so durably so another agent can reach the same conclusion.
@@ -184,7 +184,7 @@ A durable handoff should include only information needed by the next agent:
 - relevant constraints;
 - exact next action;
 - unresolved questions or blockers;
-- linked issue/PR/commit identifiers where useful.
+- linked issue, PR, or commit identifiers where useful.
 
 Handoffs should not depend on chat history.
 
@@ -197,7 +197,7 @@ A returning human or agent should be able to reconstruct state by:
 3. inspecting a milestone when an issue is assigned to one;
 4. inspecting issue dependency relationships;
 5. inspecting linked PRs;
-6. interpreting each Draft PR as an active branch-scoped lease and each Ready PR as write-stopped review/handoff state.
+6. interpreting each Draft PR as an active branch-scoped lease and each Ready PR as write-stopped and available for review or handoff.
 
 Branch listings are secondary diagnostics, not the canonical project overview.
 
@@ -233,10 +233,10 @@ Agents should prefer a connected GitHub tool when it supports the requested oper
 When it does not, the agent should provide a precise `gh` command for the human to run. This is part of the normal workflow, not an exceptional failure mode.
 
 Examples of likely CLI-only operations include:
-- creating/editing labels when the connector only applies labels;
-- creating/editing GitHub milestones;
+- creating or editing labels when the connector only applies labels;
+- creating or editing GitHub milestones;
 - GitHub Projects operations;
-- native issue dependency/sub-issue operations when not exposed through the connector;
+- native issue dependency and sub-issue operations when not exposed through the connector;
 - other authenticated GitHub API actions reachable through `gh api`.
 
 ## Versioning
@@ -246,10 +246,10 @@ Continuum uses semantic versioning for the protocol itself.
 During the draft phase:
 - `0.x` versions may change protocol semantics;
 - minor releases represent meaningful protocol revisions;
-- patch releases represent compatible clarifications/fixes where practical.
+- patch releases represent compatible clarifications or fixes where practical.
 
 After `1.0.0`:
-- patch = behavior-preserving clarification/fix;
+- patch = behavior-preserving clarification or fix;
 - minor = backward-compatible capability;
 - major = protocol change that may cause an older compliant agent to behave incorrectly.
 
@@ -259,14 +259,14 @@ Installed `CONTINUUM.md` files should declare the protocol version they target.
 
 The draft protocol should remain coherent under at least these scenarios:
 
-1. A fresh agent with no chat history reconstructs the current state, constraints, and permitted next actions from repository/GitHub state and tracked policy.
+1. A fresh agent with no chat history reconstructs the current state, constraints, and permitted next actions from repository and GitHub state and tracked policy.
 2. Two capable agents observing the same authoritative state infer the same workflow state, constraints, and set of permitted next actions.
 3. The human switches harnesses for the same workflow stage without changing project policy.
 4. A writer can acquire work from an open issue and legally create the branch, first commit, and draft PR.
 5. An abandoned pre-PR acquisition claim can be durably released or reassigned without leaving ambiguous ownership.
 6. A draft PR is unambiguously recognized as a single-writer lease for its implementation branch.
 7. Two independent draft PRs may be worked concurrently by different writers.
-8. A ready PR is unambiguously recognized as write-stopped and available for review/handoff.
+8. A ready PR is unambiguously recognized as write-stopped and available for review or handoff.
 9. Review-requested fixes do not begin until that PR returns to Draft with a recorded writer.
 10. An issue blocked by native dependency relationships is not treated as ready merely because an agent is available.
 11. A merged PR causes the issue acceptance criteria and downstream dependencies to be reconsidered.
@@ -278,6 +278,6 @@ The draft protocol should remain coherent under at least these scenarios:
 - Exact owner representation for acquisition claims and cooperative write leases.
 - Whether Continuum should standardize optional agent labels.
 - Whether GitHub Projects should have a recommended optional profile.
-- Exact native dependency/sub-issue conventions across current `gh` versions.
+- Exact native dependency and sub-issue conventions across current `gh` versions.
 - Whether stronger atomic lease mechanics are needed in practice.
 - How `le continuum check` and `le continuum update` should detect and migrate protocol versions.

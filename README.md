@@ -12,7 +12,7 @@ The protocol is currently a **draft**. The initial target is version **0.1.0**.
 - An implementation branch and pull request are created only when work starts.
 - A **draft pull request** signals one writer's lease on that implementation branch.
 - Multiple independent draft PRs may coexist.
-- A **ready pull request** signals that writes to its branch have stopped and review/handoff may begin.
+- A **ready pull request** signals that writes to its branch have stopped and review or handoff may begin.
 - Live workflow state stays in GitHub. `CONTINUUM.md` defines how agents and humans interpret that state.
 
 ## Repository layout
@@ -25,16 +25,16 @@ The protocol is currently a **draft**. The initial target is version **0.1.0**.
 
 ## Planned installation
 
-The intended installation path is:
+The planned installer command is:
 
 ```sh
 le add continuum
 ```
 
-That command is not implemented yet. It is intended to install or update `CONTINUUM.md` and add a small managed Continuum pointer to `AGENTS.md` without overwriting unrelated agent instructions.
+This command is not implemented yet. When implemented, it should install or update `CONTINUUM.md` and add a small managed Continuum pointer to `AGENTS.md` without overwriting unrelated agent instructions.
 
-GitHub bootstrap operations that are not available through an agent's GitHub connector can be delegated to a human with explicit `gh` CLI commands.
+If an agent's GitHub connector cannot perform a bootstrap operation, give the human the exact `gh` CLI command.
 
 ## Status
 
-Draft 0.1.0. This repository is also the reference self-hosted Continuum installation: changes to the protocol should remain valid under the workflow they define.
+This repository is the reference self-hosted Continuum installation: changes to the protocol should remain valid under the workflow they define.
