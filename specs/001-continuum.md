@@ -75,7 +75,7 @@ Because a draft PR normally requires a branch and commit first, an issue may car
 3. that claim authorizes only the bootstrap work needed to create the implementation branch, initial commit, push, and draft PR;
 4. once the draft PR exists, it supersedes the acquisition claim as the lease signal.
 
-The acquisition claim is issue-scoped. It must not be interpreted as repository-wide ownership.
+The acquisition claim is issue-scoped. It must not be interpreted as repository-wide ownership. If acquisition is abandoned before a draft PR exists, the recorded writer or a human may release or reassign the claim. The release or reassignment must be recorded durably on the issue before another writer proceeds.
 
 #### Requested changes
 
@@ -138,7 +138,7 @@ A fresh capable agent should normally be able to determine:
 - which implementation branches currently have leases and who owns them;
 - any project-policy constraint that applies to the next action.
 
-Two agents observing the same authoritative state and policy should normally infer the same workflow state and next action. Continuum does not require a universal workflow engine; project-specific policy may refine the generic lifecycle.
+Two agents observing the same authoritative state and policy should normally infer the same workflow state, constraints, and set of permitted next actions. Continuum does not impose a global priority rule among simultaneously actionable work; project-specific policy may refine the generic lifecycle.
 
 ### Roles belong to work, not agent identities
 
@@ -259,18 +259,19 @@ Installed `CONTINUUM.md` files should declare the protocol version they target.
 
 The draft protocol should remain coherent under at least these scenarios:
 
-1. A fresh agent with no chat history reconstructs the current state and next action from repository/GitHub state and tracked policy.
-2. Two capable agents observing the same authoritative state infer the same workflow state and next action.
+1. A fresh agent with no chat history reconstructs the current state, constraints, and permitted next actions from repository/GitHub state and tracked policy.
+2. Two capable agents observing the same authoritative state infer the same workflow state, constraints, and set of permitted next actions.
 3. The human switches harnesses for the same workflow stage without changing project policy.
 4. A writer can acquire work from an open issue and legally create the branch, first commit, and draft PR.
-5. A draft PR is unambiguously recognized as a single-writer lease for its implementation branch.
-6. Two independent draft PRs may be worked concurrently by different writers.
-7. A ready PR is unambiguously recognized as write-stopped and available for review/handoff.
-8. Review-requested fixes do not begin until that PR returns to Draft with a recorded writer.
-9. An issue blocked by native dependency relationships is not treated as ready merely because an agent is available.
-10. A merged PR causes the issue acceptance criteria and downstream dependencies to be reconsidered.
-11. A private or stale handoff that conflicts with current GitHub state does not override the shared state.
-12. A project-specific relational constraint, such as independent review, can be discovered by a fresh agent without encoding permanent agent identities.
+5. An abandoned pre-PR acquisition claim can be durably released or reassigned without leaving ambiguous ownership.
+6. A draft PR is unambiguously recognized as a single-writer lease for its implementation branch.
+7. Two independent draft PRs may be worked concurrently by different writers.
+8. A ready PR is unambiguously recognized as write-stopped and available for review/handoff.
+9. Review-requested fixes do not begin until that PR returns to Draft with a recorded writer.
+10. An issue blocked by native dependency relationships is not treated as ready merely because an agent is available.
+11. A merged PR causes the issue acceptance criteria and downstream dependencies to be reconsidered.
+12. A private or stale handoff that conflicts with current GitHub state does not override the shared state.
+13. A project-specific relational constraint, such as independent review, can be discovered by a fresh agent without encoding permanent agent identities.
 
 ## Open questions for 0.1.0
 
