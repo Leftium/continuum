@@ -35,6 +35,7 @@ Agents:
 A lease is scoped to one implementation branch/PR. Independent draft PRs may coexist.
 
 - **Acquiring**: before a PR exists, record the intended writer in the issue. That claim authorizes creating the branch, first commit, push, and draft PR.
+- **Abandoned acquisition**: before a draft PR exists, the recorded writer or a human may release or reassign the claim by recording that change on the issue.
 - **Draft PR**: one recorded writer may modify that implementation branch. The draft PR supersedes the acquisition claim as the lease signal.
 - **Ready PR**: writes to that implementation branch have stopped; review/handoff may proceed.
 - Agents that do not hold a branch's lease may inspect and review it but must not write to it.
