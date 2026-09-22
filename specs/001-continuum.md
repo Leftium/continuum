@@ -78,6 +78,66 @@ milestone
 
 Blocked work remains an open issue with native dependency/blocking relationships where possible.
 
+## Authoritative state and inference
+
+Continuum state should be reconstructable from shared repository and GitHub state plus tracked project policy. A private chat transcript or previous agent's prose summary may explain context, but it is not authoritative when it conflicts with current shared state.
+
+The precedence is:
+
+```text
+Git/GitHub live state
+  + tracked Continuum/project policy
+  = authoritative workflow state
+
+handoff prose
+  = explanatory context
+```
+
+A fresh capable agent should normally be able to determine:
+
+- the current workflow state;
+- what work is complete, active, blocked, or pending;
+- the next permitted or required action;
+- whether a write lease is held;
+- any project-policy constraint that applies to the next action.
+
+Two agents observing the same authoritative state and policy should normally infer the same workflow state and next action. Continuum does not require a universal workflow engine; project-specific policy may refine the generic lifecycle.
+
+### Roles belong to work, not agent identities
+
+Implementation, investigation, review, verification, and similar terms describe work or workflow stages. Continuum does not permanently assign those roles to ChatGPT, T3, Codex, or another harness.
+
+The human may choose any capable agent for a stage unless project policy imposes a constraint. Changing agents does not itself change workflow state.
+
+### Generic next-action semantics
+
+For the standard implementation lifecycle, agents should interpret the shared state consistently:
+
+```text
+open ready issue, no implementation PR
+  -> implementation may begin
+
+draft implementation PR
+  -> implementation is active; the recorded writer holds the lease
+
+ready implementation PR
+  -> writing has stopped; review/handoff may begin
+
+review requests changes
+  -> fixes are required before merge
+
+merged implementation PR
+  -> verify issue acceptance criteria and close/advance dependencies
+```
+
+Blocked issues remain blocked regardless of agent availability. Project policy may add stages or constraints, but should do so durably so another agent can reach the same conclusion.
+
+### Relational workflow constraints
+
+Project policy may define constraints between runs rather than fixed agent assignments. For example, a project may require review by a run independent from the implementation run.
+
+Such constraints should be represented as project policy or durable handoff state only when needed. They should not be encoded as permanent provider-specific role assignments.
+
 ## Handoffs
 
 A durable handoff should include only information needed by the next agent:
@@ -155,6 +215,21 @@ After `1.0.0`:
 - major = protocol change that may cause an older compliant agent to behave incorrectly.
 
 Installed `CONTINUUM.md` files should declare the protocol version they target.
+
+## Protocol acceptance scenarios
+
+The draft protocol should remain coherent under at least these scenarios:
+
+1. A fresh agent with no chat history reconstructs the current state and next action from repository/GitHub state and tracked policy.
+2. Two capable agents observing the same authoritative state infer the same workflow state and next action.
+3. The human switches harnesses for the same workflow stage without changing project policy.
+4. A draft PR is unambiguously recognized as an active single-writer lease.
+5. A ready PR is unambiguously recognized as write-stopped and available for review/handoff.
+6. An issue blocked by native dependency relationships is not treated as ready merely because an agent is available.
+7. Review-requested changes are recognized as fix work rather than a new implementation run.
+8. A merged PR causes the issue acceptance criteria and downstream dependencies to be reconsidered.
+9. A private or stale handoff that conflicts with current GitHub state does not override the shared state.
+10. A project-specific relational constraint, such as independent review, can be discovered by a fresh agent without encoding permanent agent identities.
 
 ## Open questions for 0.1.0
 
