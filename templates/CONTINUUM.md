@@ -21,6 +21,7 @@ Agents:
 4. A draft implementation pull request represents the active write lease.
 5. A ready pull request means writes have stopped and review/handoff may begin.
 6. Live workflow state belongs in GitHub; do not duplicate mutable state in this file.
+7. Treat current Git/GitHub state plus tracked project policy as authoritative over stale or private handoff prose.
 
 ## Repository conventions
 
@@ -65,6 +66,37 @@ When implementation finishes:
 3. mark the PR ready;
 4. review and merge;
 5. close the issue when its acceptance criteria are satisfied.
+
+## Workflow state
+
+A fresh capable agent should be able to reconstruct the current state and next action from shared repository/GitHub state plus tracked project policy.
+
+- Git/GitHub live state and tracked policy are authoritative.
+- Handoff prose provides context but does not override current shared state.
+- Workflow roles such as implementation, review, and verification belong to work stages, not permanent agent identities.
+- Changing agents does not itself change workflow state.
+- Project policy may impose relational constraints, such as requiring review independent from the implementation run.
+
+For the standard lifecycle:
+
+```text
+open ready issue, no implementation PR
+  -> implementation may begin
+
+draft implementation PR
+  -> implementation is active; recorded writer holds the lease
+
+ready implementation PR
+  -> writing has stopped; review/handoff may begin
+
+review requests changes
+  -> fixes are required before merge
+
+merged implementation PR
+  -> verify acceptance criteria and advance/close the issue
+```
+
+Blocked work remains blocked regardless of which agent is available.
 
 ## Recovery
 
