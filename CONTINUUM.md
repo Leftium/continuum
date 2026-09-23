@@ -19,7 +19,7 @@ Agents:
 2. Inspect open Continuum issues and pull requests.
 3. Treat current Git and GitHub state, together with tracked project policy, as authoritative over stale or private handoff prose.
 4. Do not modify an implementation branch unless you hold its run-scoped write lease.
-5. Release any write lease before yielding control or ending a normal writing turn.
+5. Release any write lease before yielding control or ending a normal writing turn, unless the lease is explicitly suspended while waiting for required human approval.
 6. Live workflow state belongs in GitHub; do not duplicate mutable state in this file.
 
 ## Repository conventions
@@ -39,6 +39,7 @@ A lease is scoped to one implementation branch and one active writing run. Draft
 - **Draft PR**: implementation is still open. A Draft PR may normally rest with no active lease between writing runs.
 - **Acquiring a Draft PR**: verify the current HEAD and that no other writer holds the lease, then durably record the writer (for example, `Writer: T3 / Codex`) before modifying the branch.
 - **Releasing**: before yielding control or ending normally, commit and push the coherent checkpoint, record any needed handoff, durably release the lease, and stop writing. Incomplete work remains Draft + no active lease.
+- **Approval pause**: if required human approval blocks commit, push, or another operation needed to create that checkpoint, durably record the blocked operation and suspend the lease while yielding. The same writer retains ownership; no other writer may acquire the branch. After approval, resume, create the checkpoint, and release normally. If the human abandons the suspended run, lease recovery explicitly accepts that uncommitted or unpushed work may be discarded.
 - **Transfer**: a new writer acquires the unleased Draft PR at its verified checkpoint. Transfer is logically release + acquire; Ready is not required.
 - **Ready PR**: implementation is write-stopped, has no active lease, and is available for review or handoff.
 - Agents that do not hold a branch's lease may inspect and review it but must not write to it.
@@ -46,7 +47,7 @@ A lease is scoped to one implementation branch and one active writing run. Draft
 
 If review requests changes, convert the PR back to Draft, acquire a run-scoped lease at the current HEAD, apply and verify fixes, release the lease, and return the PR to Ready only when implementation is complete again.
 
-If a writing run terminates abnormally, a human may recover an evidently stale lease after establishing that the recorded writer is no longer actively writing and recording the recovery durably.
+If a writing run terminates abnormally, a human may recover an evidently stale lease after establishing that the recorded writer is no longer actively writing and recording the recovery durably. A suspended approval lease is not stale merely because the writer is waiting on the human.
 
 This is a cooperative convention rather than an atomic distributed lock. Stronger mechanics may be added later without changing the human-visible Draft and Ready lifecycle states.
 
