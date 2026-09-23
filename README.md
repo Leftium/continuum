@@ -12,6 +12,7 @@ The protocol is currently a **draft**. The initial target is version **0.1.0**.
 - An implementation branch and pull request are created only when work starts.
 - A **draft pull request** means implementation is still open; it may rest unleased between writing runs.
 - A **write lease** is run-scoped: one writer acquires it before branch writes and releases it before yielding or ending normally.
+- If required human approval blocks commit or push, the lease may be explicitly **suspended** across that approval pause; ownership does not transfer.
 - Multiple independent draft PRs may coexist, each leased or unleased.
 - A **ready pull request** is unleased and write-stopped so review or handoff may begin.
 - Live workflow state stays in GitHub. `CONTINUUM.md` defines how agents and humans interpret that state.
