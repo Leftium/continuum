@@ -62,7 +62,7 @@ Continuum 0.1.0 uses PR Draft and Ready states as the normal cooperative lease s
 
 Each lease is scoped to one implementation branch and its PR, not the repository. Multiple draft implementation PRs may coexist when their work can safely proceed concurrently.
 
-The lease owner must be identified durably in the issue or PR handoff. Non-owners may inspect and review the branch but must not write to it.
+The lease owner must be identified durably in the issue or PR handoff. Prefer a simple explicit record such as `Writer: T3 / Codex`; the latest explicit writer record for a Draft PR is the cooperative lease-owner record unless project policy defines another representation. Non-owners may inspect and review the branch but must not write to it.
 
 Issue dependencies or tracked project policy may prohibit concurrency even when separate branches exist. Continuum does not attempt to lock files or subsystems across otherwise independent PRs.
 
@@ -76,6 +76,19 @@ Because a draft PR normally requires a branch and commit first, an issue may car
 4. once the draft PR exists, it supersedes the acquisition claim as the lease signal.
 
 The acquisition claim is issue-scoped. It must not be interpreted as repository-wide ownership. If acquisition is abandoned before a draft PR exists, the recorded writer or a human may release or reassign the claim. The release or reassignment must be recorded durably on the issue before another writer proceeds.
+
+#### Draft-to-Draft writer transfer
+
+A Draft PR may change writers without becoming Ready for review. This is useful when implementation is still active but responsibility changes because of harness switching, usage exhaustion, specialization, or another handoff.
+
+The current writer must:
+
+1. stop at a coherent checkpoint;
+2. commit and push all intended checkpoint changes;
+3. record a durable handoff and the new writer;
+4. stop writing to the implementation branch.
+
+The new recorded writer may then continue on the same Draft PR. The PR remains Draft throughout; Ready must not be used merely to signal an implementation handoff.
 
 #### Requested changes
 
@@ -129,6 +142,8 @@ Git and GitHub live state
 
 handoff prose
   = explanatory context
+
+Tracked files and PR bodies should describe durable policy, scope, rationale, and facts rather than duplicate mutable GitHub workflow state such as the current Draft/Ready status, current review stage, or current writer. When such prose becomes stale, live GitHub state and the latest durable ownership record remain authoritative.
 ```
 
 A fresh capable agent should normally be able to determine:
@@ -169,6 +184,10 @@ merged implementation PR
 
 Blocked issues remain blocked regardless of agent availability. Project policy may add stages or constraints, but should do so durably so another agent can reach the same conclusion.
 
+Project policy may also define risk-tiered verification. A bounded parser or documentation fix need not run the same verification matrix as a deployment, layout, persistence, or runtime-boundary change, provided the required checks are explicit and the branch is verified before its lease is released.
+
+For archaeology, restoration, or migration work where correctness depends on historical behavior, project policy may require a behavior or semantics inventory before implementation begins. This is an optional readiness refinement, not a mandatory Continuum lifecycle stage.
+
 ### Relational workflow constraints
 
 Project policy may define constraints between runs rather than fixed agent assignments. For example, a project may require review by a run independent from the implementation run.
@@ -185,6 +204,8 @@ A durable handoff should include only information needed by the next agent:
 - exact next action;
 - unresolved questions or blockers;
 - linked issue, PR, or commit identifiers where useful.
+
+Prefer putting durable product/scope decisions, blockers, dependencies, and acceptance changes on the issue. Prefer putting implementation checkpoints, commit identifiers, verification, review findings, and fix-pass handoffs on the PR. Cross-link instead of duplicating long mutable handoffs across both objects.
 
 Handoffs should not depend on chat history.
 
@@ -206,6 +227,8 @@ Branch listings are secondary diagnostics, not the canonical project overview.
 A repository participates in Continuum when it contains a root `CONTINUUM.md`.
 
 `AGENTS.md` should contain a small pointer directing agents to read it. Installers must preserve unrelated `AGENTS.md` content and should own only a clearly delimited managed section.
+
+If a repository has multiple long-lived accepted integration bases from which Continuum work may begin, each base should carry compatible Continuum discovery files or project policy must provide an equally reliable discovery path. A fresh agent starting from any accepted base should not silently miss the protocol.
 
 The planned installer is:
 
@@ -267,11 +290,13 @@ The draft protocol should remain coherent under at least these scenarios:
 6. A draft PR is unambiguously recognized as a single-writer lease for its implementation branch.
 7. Two independent draft PRs may be worked concurrently by different writers.
 8. A ready PR is unambiguously recognized as write-stopped and available for review or handoff.
-9. Review-requested fixes do not begin until that PR returns to Draft with a recorded writer.
-10. An issue blocked by native dependency relationships is not treated as ready merely because an agent is available.
-11. A merged PR causes the issue acceptance criteria and downstream dependencies to be reconsidered.
-12. A private or stale handoff that conflicts with current GitHub state does not override the shared state.
-13. A project-specific relational constraint, such as independent review, can be discovered by a fresh agent without encoding permanent agent identities.
+9. A Draft PR may transfer directly from one recorded writer to another at a pushed coherent checkpoint without passing through Ready.
+10. Review-requested fixes do not begin until that PR returns to Draft with a recorded writer.
+11. An issue blocked by native dependency relationships is not treated as ready merely because an agent is available.
+12. A merged PR causes the issue acceptance criteria and downstream dependencies to be reconsidered.
+13. A private or stale handoff that conflicts with current GitHub state does not override the shared state.
+14. A project-specific relational constraint, such as independent review, can be discovered by a fresh agent without encoding permanent agent identities.
+15. A fresh agent starting from any accepted long-lived integration base can discover that the repository uses Continuum.
 
 ## Open questions for 0.1.0
 
