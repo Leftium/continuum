@@ -10,9 +10,11 @@ The protocol is currently a **draft**. The initial target is version **0.1.0**.
 - GitHub **milestones** optionally group larger outcomes.
 - Work ordering is expressed by issue relationships rather than sequence numbers.
 - An implementation branch and pull request are created only when work starts.
-- A **draft pull request** signals one writer's lease on that implementation branch.
-- Multiple independent draft PRs may coexist.
-- A **ready pull request** signals that writes to its branch have stopped and review or handoff may begin.
+- A **draft pull request** means implementation is still open; it may rest unleased between writing runs.
+- A **write lease** is run-scoped: one writer acquires it before branch writes and releases it before yielding or ending normally.
+- If required human approval blocks commit or push, the lease may be explicitly **suspended** across that approval pause; ownership does not transfer.
+- Multiple independent draft PRs may coexist, each leased or unleased.
+- A **ready pull request** is unleased and write-stopped so review or handoff may begin.
 - Live workflow state stays in GitHub. `CONTINUUM.md` defines how agents and humans interpret that state.
 
 ## Repository layout
