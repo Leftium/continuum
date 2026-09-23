@@ -43,7 +43,7 @@ An issue may represent implementation, investigation, modernization, comparison,
 
 A run is one agent taking responsibility for advancing an issue. Runs are conceptual; Continuum 0.1.0 does not require a dedicated GitHub object for them.
 
-A run must leave a durable handoff in the issue or linked PR when responsibility changes. A run that writes to an implementation branch must acquire its write lease before writing and release it before yielding control or ending normally.
+A run must leave a durable handoff in the issue or linked PR when responsibility changes. A run that writes to an implementation branch must acquire its write lease before writing and release it before yielding control or ending normally, except when the run is explicitly suspended while waiting for required human approval.
 
 ### Pull request
 
@@ -66,6 +66,8 @@ Each lease is scoped to one implementation branch and its PR, not the repository
 Before modifying an existing implementation branch, a writer must verify the current branch HEAD and durably acquire the lease. Prefer a simple explicit record such as `Writer: T3 / Codex`; the latest unreleased writer record is the cooperative lease-owner record unless project policy defines another representation. Non-owners may inspect and review the branch but must not write to it.
 
 A writing run must release its lease before yielding control to the human or ending normally, even when implementation remains incomplete. Releasing a lease does not make a Draft PR Ready. The normal resting state for incomplete work is therefore Draft + no active lease.
+
+The exception is an approval pause: if the writer cannot create the required durable checkpoint because commit, push, or another necessary write operation requires human approval, the run may yield while retaining the lease in a suspended state. A suspended lease still excludes other writers and is not a normal resting state.
 
 Issue dependencies or tracked project policy may prohibit concurrency even when separate branches exist. Continuum does not attempt to lock files or subsystems across otherwise independent PRs.
 
@@ -100,6 +102,19 @@ Before a normal run ends or yields control:
 
 The PR remains Draft if implementation is incomplete. The same writer may reacquire it in a later run, or a different writer may acquire it after verifying the checkpoint. A transfer is therefore logically release + acquire, even if future tooling performs both operations atomically.
 
+#### Approval pause
+
+If a writer must obtain required human approval before it can commit, push, or perform another operation needed to create the durable checkpoint, it cannot satisfy the normal release sequence yet. In that case:
+
+1. durably record that the lease is suspended for approval and identify the blocked operation;
+2. retain the lease while yielding to the human;
+3. do not make unrelated branch writes while suspended;
+4. after approval, resume the same writing run, perform the approved operation, create the durable checkpoint, and release normally.
+
+A suspended lease is still held by its recorded writer, so another writer must not acquire the branch. Approval itself does not transfer ownership.
+
+If the human decides not to resume the suspended run, the human may explicitly abandon it and recover the lease. That recovery accepts that any uncommitted or unpushed work from the suspended run may be discarded; it must not be assumed to exist in shared GitHub state. Record the abandonment and resulting unleased or newly acquired state durably.
+
 If a run terminates abnormally before releasing its lease, a human may recover an evidently stale lease after establishing that the recorded writer is no longer actively writing. The recovery and resulting ownership state must be recorded durably.
 
 #### Requested changes
@@ -128,7 +143,10 @@ open ready issue
   -> branch + initial commit
   -> draft PR; no active lease
       -> writing run acquires lease at current HEAD
-      -> write / commit / push / handoff
+      -> write
+          -> if approval blocks checkpoint: suspended lease
+          -> approval -> resume same run
+      -> commit / push / handoff
       -> writing run releases lease
       -> draft PR; no active lease
       -> repeat as needed
@@ -193,7 +211,12 @@ draft implementation PR, no lease
   -> implementation is incomplete and available for a writing run
 
 draft implementation PR, active lease
-  -> recorded writer may write until that run yields or ends
+  -> recorded writer may write until that run reaches a checkpoint
+
+approval required before checkpoint can be made durable
+  -> record suspended lease and blocked operation
+  -> yield for approval while retaining ownership
+  -> after approval, resume the same run and create the checkpoint
 
 end of writing run
   -> push coherent checkpoint, record needed handoff, release lease
@@ -320,12 +343,14 @@ The draft protocol should remain coherent under at least these scenarios:
 9. Two independent Draft PRs may be worked concurrently by different writers when each holds only its own branch lease.
 10. A Ready PR has no active write lease and is unambiguously write-stopped and available for review or handoff.
 11. Review-requested fixes do not begin until the PR returns to Draft and a writer acquires its run-scoped lease.
-12. An evidently stale lease left by an abnormally terminated run can be durably recovered without treating the writer as the permanent owner.
-13. An issue blocked by native dependency relationships is not treated as ready merely because an agent is available.
-14. A merged PR causes the issue acceptance criteria and downstream dependencies to be reconsidered.
-15. A private or stale handoff that conflicts with current GitHub state does not override the shared state.
-16. A project-specific relational constraint, such as independent review, can be discovered by a fresh agent without encoding permanent agent identities.
-17. A fresh agent starting from any accepted long-lived integration base can discover that the repository uses Continuum.
+12. A writer blocked on required approval before commit or push may yield with a durably recorded suspended lease; no other writer may acquire the branch during that pause.
+13. After approval, the suspended writer can resume, create the durable checkpoint, and release normally; if the human abandons the run instead, lease recovery explicitly accepts that unpushed work may be discarded.
+14. An evidently stale lease left by an abnormally terminated run can be durably recovered without treating the writer as the permanent owner.
+15. An issue blocked by native dependency relationships is not treated as ready merely because an agent is available.
+16. A merged PR causes the issue acceptance criteria and downstream dependencies to be reconsidered.
+17. A private or stale handoff that conflicts with current GitHub state does not override the shared state.
+18. A project-specific relational constraint, such as independent review, can be discovered by a fresh agent without encoding permanent agent identities.
+19. A fresh agent starting from any accepted long-lived integration base can discover that the repository uses Continuum.
 
 ## Open questions for 0.1.0
 
@@ -333,5 +358,5 @@ The draft protocol should remain coherent under at least these scenarios:
 - Whether Continuum should standardize optional agent labels.
 - Whether GitHub Projects should have a recommended optional profile.
 - Exact native dependency and sub-issue conventions across current `gh` versions.
-- Whether stronger atomic lease mechanics, transfer tooling, or stale-lease detection are needed in practice.
+- Whether stronger atomic lease mechanics, transfer tooling, approval-pause tooling, or stale-lease detection are needed in practice.
 - How `le continuum check` and `le continuum update` should detect and migrate protocol versions.
