@@ -43,7 +43,7 @@ An issue may represent implementation, investigation, modernization, comparison,
 
 A run is one agent taking responsibility for advancing an issue. Runs are conceptual; Continuum 0.1.0 does not require a dedicated GitHub object for them.
 
-A run must leave a durable handoff in the issue or linked PR when responsibility changes.
+A run must leave a durable handoff in the issue or linked PR when responsibility changes. A run that writes to an implementation branch must acquire its write lease before writing and release it before yielding control or ending normally.
 
 ### Pull request
 
@@ -53,16 +53,19 @@ Implementation branches and PRs should be created only when work starts. Future 
 
 ### Write lease
 
-A write lease grants one recorded writer exclusive permission to modify one implementation branch.
+A write lease grants one recorded writer exclusive permission to modify one implementation branch during an active writing run.
 
-Continuum 0.1.0 uses PR Draft and Ready states as the normal cooperative lease signals:
+PR lifecycle state and write ownership are separate:
 
-- Draft = the PR's implementation branch has an active write lease.
-- Ready = that branch's lease is released; review or handoff may proceed.
+- Draft = implementation is still open. A Draft PR may be unleased between writing runs.
+- Ready = implementation is write-stopped and available for review or handoff. A Ready PR must not have an active write lease.
+- Write lease = one recorded writer may modify the Draft PR's branch for the current writing run.
 
-Each lease is scoped to one implementation branch and its PR, not the repository. Multiple draft implementation PRs may coexist when their work can safely proceed concurrently.
+Each lease is scoped to one implementation branch and its PR, not the repository. Multiple Draft implementation PRs may coexist when their work can safely proceed concurrently, and each may be either leased or unleased.
 
-The lease owner must be identified durably in the issue or PR handoff. Prefer a simple explicit record such as `Writer: T3 / Codex`; the latest explicit writer record for a Draft PR is the cooperative lease-owner record unless project policy defines another representation. Non-owners may inspect and review the branch but must not write to it.
+Before modifying an existing implementation branch, a writer must verify the current branch HEAD and durably acquire the lease. Prefer a simple explicit record such as `Writer: T3 / Codex`; the latest unreleased writer record is the cooperative lease-owner record unless project policy defines another representation. Non-owners may inspect and review the branch but must not write to it.
+
+A writing run must release its lease before yielding control to the human or ending normally, even when implementation remains incomplete. Releasing a lease does not make a Draft PR Ready. The normal resting state for incomplete work is therefore Draft + no active lease.
 
 Issue dependencies or tracked project policy may prohibit concurrency even when separate branches exist. Continuum does not attempt to lock files or subsystems across otherwise independent PRs.
 
@@ -77,18 +80,27 @@ Because a draft PR normally requires a branch and commit first, an issue may car
 
 The acquisition claim is issue-scoped. It must not be interpreted as repository-wide ownership. If acquisition is abandoned before a draft PR exists, the recorded writer or a human may release or reassign the claim. The release or reassignment must be recorded durably on the issue before another writer proceeds.
 
-#### Draft-to-Draft writer transfer
+#### Lease lifecycle on an existing Draft PR
 
-A Draft PR may change writers without becoming Ready for review. This is useful when implementation is still active but responsibility changes because of harness switching, usage exhaustion, specialization, or another handoff.
+A Draft PR may pass through many writing runs without becoming Ready for review.
 
-The current writer must:
+To begin a writing run:
+
+1. verify the PR is Draft and the branch HEAD is the expected checkpoint;
+2. verify no other writer holds the lease;
+3. durably record the writer and acquire the lease;
+4. only then modify the implementation branch.
+
+Before a normal run ends or yields control:
 
 1. stop at a coherent checkpoint;
 2. commit and push all intended checkpoint changes;
-3. record a durable handoff and the new writer;
-4. stop writing to the implementation branch.
+3. record a durable handoff when context is needed by the next run;
+4. durably release the lease.
 
-The new recorded writer may then continue on the same Draft PR. The PR remains Draft throughout; Ready must not be used merely to signal an implementation handoff.
+The PR remains Draft if implementation is incomplete. The same writer may reacquire it in a later run, or a different writer may acquire it after verifying the checkpoint. A transfer is therefore logically release + acquire, even if future tooling performs both operations atomically.
+
+If a run terminates abnormally before releasing its lease, a human may recover an evidently stale lease after establishing that the recorded writer is no longer actively writing. The recovery and resulting ownership state must be recorded durably.
 
 #### Requested changes
 
@@ -96,10 +108,11 @@ A Ready PR remains write-stopped during review.
 
 When review requires fixes:
 
-1. select and durably record the writer for that PR;
-2. convert the PR back to Draft;
-3. only then modify its implementation branch;
-4. return it to Ready after fixes and verification.
+1. convert the PR back to Draft;
+2. acquire a run-scoped write lease at the current branch HEAD;
+3. apply and verify the fixes;
+4. release the lease;
+5. return the PR to Ready only when implementation is again complete.
 
 Other PR-scoped leases are unaffected.
 
@@ -113,12 +126,19 @@ Typical lifecycle for one issue:
 open ready issue
   -> acquisition claim; writer recorded
   -> branch + initial commit
-  -> draft PR; branch lease held
-  -> ready PR; branch lease released
+  -> draft PR; no active lease
+      -> writing run acquires lease at current HEAD
+      -> write / commit / push / handoff
+      -> writing run releases lease
+      -> draft PR; no active lease
+      -> repeat as needed
+  -> implementation complete + verified
+  -> ready PR; no active lease
       -> approved -> merged
       -> changes requested
-          -> writer recorded
-          -> draft PR; branch lease reacquired
+          -> draft PR
+          -> writing run acquires lease
+          -> fixes / verify / release
           -> ready PR
   -> merged PR
   -> issue acceptance verified
@@ -169,14 +189,21 @@ For the standard implementation lifecycle:
 open ready issue, no implementation PR
   -> record writer and acquire enough authority to create branch + draft PR
 
-draft implementation PR
-  -> implementation is active; recorded writer owns that branch's lease
+draft implementation PR, no lease
+  -> implementation is incomplete and available for a writing run
+
+draft implementation PR, active lease
+  -> recorded writer may write until that run yields or ends
+
+end of writing run
+  -> push coherent checkpoint, record needed handoff, release lease
+  -> remain Draft unless implementation is complete
 
 ready implementation PR
-  -> that branch is write-stopped; review or handoff may begin
+  -> no active lease; branch is write-stopped and review or handoff may begin
 
 review requests changes
-  -> record writer, convert that PR to draft, then implement fixes
+  -> convert PR to Draft, acquire lease at current HEAD, implement fixes, verify, release lease, then return to Ready
 
 merged implementation PR
   -> verify issue acceptance criteria; if they are satisfied, close the issue and reassess downstream dependencies
@@ -218,7 +245,7 @@ A returning human or agent should be able to reconstruct state by:
 3. inspecting a milestone when an issue is assigned to one;
 4. inspecting issue dependency relationships;
 5. inspecting linked PRs;
-6. interpreting each Draft PR as an active branch-scoped lease and each Ready PR as write-stopped and available for review or handoff.
+6. interpreting each Draft PR as incomplete implementation that may or may not have an active run-scoped lease, and each Ready PR as write-stopped with no active lease and available for review or handoff.
 
 Branch listings are secondary diagnostics, not the canonical project overview.
 
@@ -287,22 +314,24 @@ The draft protocol should remain coherent under at least these scenarios:
 3. The human switches harnesses for the same workflow stage without changing project policy.
 4. A writer can acquire work from an open issue and legally create the branch, first commit, and draft PR.
 5. An abandoned pre-PR acquisition claim can be durably released or reassigned without leaving ambiguous ownership.
-6. A draft PR is unambiguously recognized as a single-writer lease for its implementation branch.
-7. Two independent draft PRs may be worked concurrently by different writers.
-8. A ready PR is unambiguously recognized as write-stopped and available for review or handoff.
-9. A Draft PR may transfer directly from one recorded writer to another at a pushed coherent checkpoint without passing through Ready.
-10. Review-requested fixes do not begin until that PR returns to Draft with a recorded writer.
-11. An issue blocked by native dependency relationships is not treated as ready merely because an agent is available.
-12. A merged PR causes the issue acceptance criteria and downstream dependencies to be reconsidered.
-13. A private or stale handoff that conflicts with current GitHub state does not override the shared state.
-14. A project-specific relational constraint, such as independent review, can be discovered by a fresh agent without encoding permanent agent identities.
-15. A fresh agent starting from any accepted long-lived integration base can discover that the repository uses Continuum.
+6. A Draft PR may rest with no active writer; before modifying it, a run verifies the current HEAD and acquires the single-writer lease.
+7. A normal writing run releases its lease before yielding or ending, even when the PR remains Draft and implementation is incomplete.
+8. The same writer or another writer may later acquire an unleased Draft PR at its current checkpoint without passing through Ready.
+9. Two independent Draft PRs may be worked concurrently by different writers when each holds only its own branch lease.
+10. A Ready PR has no active write lease and is unambiguously write-stopped and available for review or handoff.
+11. Review-requested fixes do not begin until the PR returns to Draft and a writer acquires its run-scoped lease.
+12. An evidently stale lease left by an abnormally terminated run can be durably recovered without treating the writer as the permanent owner.
+13. An issue blocked by native dependency relationships is not treated as ready merely because an agent is available.
+14. A merged PR causes the issue acceptance criteria and downstream dependencies to be reconsidered.
+15. A private or stale handoff that conflicts with current GitHub state does not override the shared state.
+16. A project-specific relational constraint, such as independent review, can be discovered by a fresh agent without encoding permanent agent identities.
+17. A fresh agent starting from any accepted long-lived integration base can discover that the repository uses Continuum.
 
 ## Open questions for 0.1.0
 
-- Exact owner representation for acquisition claims and cooperative write leases.
+- Exact machine-readable representation for run-scoped lease acquisition, ownership, and release.
 - Whether Continuum should standardize optional agent labels.
 - Whether GitHub Projects should have a recommended optional profile.
 - Exact native dependency and sub-issue conventions across current `gh` versions.
-- Whether stronger atomic lease mechanics are needed in practice.
+- Whether stronger atomic lease mechanics, transfer tooling, or stale-lease detection are needed in practice.
 - How `le continuum check` and `le continuum update` should detect and migrate protocol versions.
