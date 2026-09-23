@@ -52,7 +52,7 @@ This is a cooperative convention rather than an atomic distributed lock. Stronge
 
 A Continuum issue should describe the goal, relevant durable context and decisions, constraints, acceptance criteria, dependencies, and current handoff when active.
 
-Prefer issue comments for durable product/scope decisions, blockers, dependencies, and acceptance changes. Prefer PR comments for implementation checkpoints, commit identifiers, verification, review findings, and fix-pass handoffs. Cross-link instead of duplicating long mutable handoffs across both places. Do not copy mutable GitHub state such as current Draft/Ready or review status into tracked files or long-lived PR prose when the live GitHub field already represents it.
+Prefer issue comments for durable product and scope decisions, blockers, dependencies, and acceptance changes. Prefer PR comments for implementation checkpoints, commit IDs, verification, review findings, and handoffs for fixes. Link between them instead of repeating long handoffs. Do not copy live GitHub fields, such as Draft/Ready or review status, into tracked files or long-lived PR prose.
 
 When implementation begins:
 1. record the intended writer in the issue;

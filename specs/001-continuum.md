@@ -142,9 +142,9 @@ Git and GitHub live state
 
 handoff prose
   = explanatory context
-
-Tracked files and PR bodies should describe durable policy, scope, rationale, and facts rather than duplicate mutable GitHub workflow state such as the current Draft/Ready status, current review stage, or current writer. When such prose becomes stale, live GitHub state and the latest durable ownership record remain authoritative.
 ```
+
+Tracked files and PR bodies should describe durable policy, scope, rationale, and facts instead of copying mutable GitHub state, such as Draft/Ready status, review stage, or the current writer. If prose becomes stale, live GitHub state and the latest durable writer record remain authoritative.
 
 A fresh capable agent should normally be able to determine:
 - the current workflow state;
@@ -184,9 +184,9 @@ merged implementation PR
 
 Blocked issues remain blocked regardless of agent availability. Project policy may add stages or constraints, but should do so durably so another agent can reach the same conclusion.
 
-Project policy may also define risk-tiered verification. A bounded parser or documentation fix need not run the same verification matrix as a deployment, layout, persistence, or runtime-boundary change, provided the required checks are explicit and the branch is verified before its lease is released.
+Project policy may also set verification by risk. A bounded parser or documentation fix may need fewer checks than a deployment, layout, persistence, or runtime-boundary change. The required checks must be explicit, and the branch must be verified before its lease is released.
 
-For archaeology, restoration, or migration work where correctness depends on historical behavior, project policy may require a behavior or semantics inventory before implementation begins. This is an optional readiness refinement, not a mandatory Continuum lifecycle stage.
+For archaeology, restoration, or migration work that depends on historical behavior, project policy may require a behavior or semantics inventory before implementation. This is an optional readiness refinement, not a required Continuum lifecycle stage.
 
 ### Relational workflow constraints
 
