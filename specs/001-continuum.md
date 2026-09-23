@@ -71,14 +71,14 @@ Issue dependencies or tracked project policy may prohibit concurrency even when 
 
 #### Lease acquisition before a PR exists
 
-Because a draft PR normally requires a branch and commit first, an issue may carry a temporary acquisition claim:
+Because a Draft PR normally requires a branch and commit first, an issue may carry a temporary acquisition claim:
 
 1. verify the issue is ready to begin;
 2. record the intended writer durably on the issue;
-3. that claim authorizes only the bootstrap work needed to create the implementation branch, initial commit, push, and draft PR;
-4. once the draft PR exists, it supersedes the acquisition claim as the lease signal.
+3. that claim authorizes only the bootstrap work needed to create the implementation branch, initial commit, push, and Draft PR;
+4. once the Draft PR exists, the bootstrap claim ends; before further writes, acquire the PR branch's run-scoped lease.
 
-The acquisition claim is issue-scoped. It must not be interpreted as repository-wide ownership. If acquisition is abandoned before a draft PR exists, the recorded writer or a human may release or reassign the claim. The release or reassignment must be recorded durably on the issue before another writer proceeds.
+The acquisition claim is issue-scoped. It must not be interpreted as repository-wide ownership. If acquisition is abandoned before a Draft PR exists, the recorded writer or a human may release or reassign the claim. The release or reassignment must be recorded durably on the issue before another writer proceeds.
 
 #### Lease lifecycle on an existing Draft PR
 
