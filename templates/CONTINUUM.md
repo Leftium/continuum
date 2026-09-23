@@ -36,7 +36,8 @@ A lease is scoped to one implementation branch and its PR. Independent draft PRs
 
 - **Acquiring**: before a PR exists, record the intended writer in the issue. That claim authorizes creating the branch, first commit, push, and draft PR.
 - **Abandoned acquisition**: before a draft PR exists, the recorded writer or a human may release or reassign the claim by recording that change on the issue.
-- **Draft PR**: one recorded writer may modify that implementation branch. The draft PR supersedes the acquisition claim as the lease signal.
+- **Draft PR**: one recorded writer may modify that implementation branch. The draft PR supersedes the acquisition claim as the lease signal. Prefer a simple durable writer record such as `Writer: T3 / Codex`.
+- **Draft-to-Draft transfer**: the current writer may hand implementation directly to another writer without marking the PR Ready. Push a coherent checkpoint, record the handoff and new writer, then stop writing; the new recorded writer may continue while the PR remains Draft.
 - **Ready PR**: writes to that implementation branch have stopped; review or handoff may proceed.
 - Agents that do not hold a branch's lease may inspect and review it but must not write to it.
 - Concurrent leases are allowed unless issue dependencies or project policy make the work unsafe to overlap.
@@ -50,6 +51,8 @@ This is a cooperative convention rather than an atomic distributed lock. Stronge
 ## Issue lifecycle
 
 A Continuum issue should describe the goal, relevant durable context and decisions, constraints, acceptance criteria, dependencies, and current handoff when active.
+
+Prefer issue comments for durable product/scope decisions, blockers, dependencies, and acceptance changes. Prefer PR comments for implementation checkpoints, commit identifiers, verification, review findings, and fix-pass handoffs. Cross-link instead of duplicating long mutable handoffs across both places. Do not copy mutable GitHub state such as current Draft/Ready or review status into tracked files or long-lived PR prose when the live GitHub field already represents it.
 
 When implementation begins:
 1. record the intended writer in the issue;
@@ -84,6 +87,10 @@ gh label create continuum \
   --description "Managed by the Continuum workflow" \
   --color 5319E7
 ```
+
+If the repository has multiple long-lived accepted integration bases, make Continuum discoverable from each base with compatible `AGENTS.md` / `CONTINUUM.md` files or an equally reliable project-policy discovery path.
+
+Project policy may define risk-tiered verification for bounded fixes versus deployment/layout/persistence/runtime-boundary changes. For archaeology or restoration work, it may also require a behavior/semantics inventory before implementation starts.
 
 Create GitHub milestones only when useful for grouping:
 
