@@ -42,7 +42,7 @@ An issue may represent implementation, investigation, modernization, comparison,
 
 ### Agent run
 
-A run is one agent taking responsibility for advancing an issue. Runs are conceptual; Continuum 0.1.0 does not require a dedicated GitHub object for them.
+A run is one agent taking responsibility for advancing an issue. Runs are conceptual; Continuum 0.2.0 does not require a dedicated GitHub object for them.
 
 A run must leave a durable handoff in the issue or linked PR when responsibility changes. A run that writes to an implementation branch must acquire its write lease before writing and release it before yielding control or ending normally, except when the run is explicitly suspended while waiting for required human approval.
 
@@ -67,9 +67,17 @@ Keep responsibilities explicit:
 
 `PR-PLAN.md` must not duplicate mutable workflow state such as the current writer, current HEAD, latest test run, or review status. If durable scope or acceptance changes during implementation, record that change on the issue and synchronize the plan. If durable repository knowledge is discovered, promote it to the appropriate spec, documentation, test, code, or issue rather than leaving it only in the plan.
 
-The plan remains present through implementation and review. Promote durable knowledge before review is complete; repository changes made for that promotion require review. Once review is otherwise clean, return the PR to Draft, acquire a lease, delete root `PR-PLAN.md` in a final non-substantive cleanup commit, release the lease, and return the PR to Ready. Confirm the plan is absent and required review and checks still pass for the final HEAD before merge. The temporary root plan must never land on the integration branch. If substantive implementation resumes after cleanup, return the PR to Draft, acquire a lease, and recreate the root plan before other implementation changes.
+The plan remains present through implementation and review. Promote durable knowledge before review is complete; repository changes made for that promotion require review. Once review is otherwise clean, use the repository's Continuum finalizer to create a cleanup-only commit that deletes root `PR-PLAN.md` and changes nothing else. This narrow finalization step is standing-authorized, may run while the PR remains Ready, and does not require a normal write lease or substantive re-review. Repository rules may still mechanically require checks or approval on the new HEAD. The temporary root plan must never land on the integration branch. If substantive implementation resumes after cleanup, return the PR to Draft, acquire a lease, and recreate the root plan before other implementation changes.
 
 A repository may ship a durable starter at `templates/PR-PLAN.md`. That template is not the per-PR temporary plan and may remain on the integration branch.
+
+### PR execution defaults
+
+Unless project policy explicitly narrows this authority, acquiring a Continuum PR lease carries standing human authorization for routine, in-scope, non-destructive repository actions needed to execute the issue and `PR-PLAN.md`. Where the agent harness recognizes repository policy as approval, the writer should not stop for separate approval for ordinary repository inspection and edits, formatter/lint/test/build commands, package-manager operations required by the plan, normal branch switching, commits, or non-force pushes to the PR branch.
+
+This standing authorization does not permit force-pushes or history rewrites, merging into the integration/default branch, destructive reset/clean operations, discarding unrelated local changes, deleting unrelated data, publishing/releases/deployments, production or external-infrastructure changes, credential/secret changes, paid or irreversible external actions, or scope/decision changes that otherwise require human input. Higher-precedence system or harness restrictions still apply.
+
+Agents should prefer the current project worktree for Continuum PR work rather than creating an isolated worktree by default. Before switching, inspect the current branch and worktree state. Switch the existing worktree to the PR branch when that can be done without losing, overwriting, or accidentally mixing staged, unstaged, or conflicting untracked work. If in-place switching is unsafe, preserve the existing work and use a separate worktree/workspace. Do not auto-stash, reset, clean, or discard user work merely to make an in-place switch possible.
 
 ### Write lease
 
@@ -151,7 +159,7 @@ When review requires fixes:
 
 Other PR-scoped leases are unaffected.
 
-This convention is intentionally soft in 0.1.0. A future version may add an atomic ref-backed or API-backed lease while retaining Draft and Ready as the human-visible state.
+This convention is intentionally soft in 0.2.0. A future version may add an atomic ref-backed or API-backed lease while retaining Draft and Ready as the human-visible state.
 
 ## State model
 
@@ -173,10 +181,9 @@ open ready issue
   -> implementation complete + verified
   -> ready PR; no active lease
       -> review clean
-          -> draft PR; acquire lease
-          -> delete PR-PLAN.md in final non-substantive cleanup commit
-          -> release lease; ready PR
-          -> confirm required review and checks for final HEAD; merged
+          -> Continuum finalizer deletes only PR-PLAN.md
+          -> ordinary checks may run on cleanup HEAD
+          -> merged
       -> changes requested
           -> draft PR
           -> writing run acquires lease
@@ -252,10 +259,10 @@ ready implementation PR
   -> no active lease; branch is write-stopped and review against the issue + PR-PLAN.md may begin
 
 review otherwise clean
-  -> return to Draft and acquire lease at current HEAD
-  -> delete root PR-PLAN.md in a final non-substantive cleanup commit
-  -> release lease and return to Ready
-  -> confirm the plan is absent and required review and checks still pass for the final HEAD before merge
+  -> run the standing-authorized Continuum finalizer while PR remains Ready
+  -> finalizer commits only deletion of root PR-PLAN.md
+  -> confirm the plan is absent; ordinary repository checks may run on cleanup HEAD
+  -> no substantive re-review is required solely for plan deletion
 
 review requests changes
   -> convert PR to Draft, acquire lease at current HEAD, implement fixes, verify, release lease, then return to Ready
@@ -322,7 +329,7 @@ The planned installer is:
 le add continuum
 ```
 
-It is not implemented yet. The installer should be idempotent. Installation may include a durable `templates/PR-PLAN.md` starter, but must not create a root `PR-PLAN.md` on an integration branch; the root plan is created only when implementation work begins.
+It is not implemented yet. The installer should be idempotent. Installation may include a durable `templates/PR-PLAN.md` starter and the standard Continuum PR-plan finalizer helper, but must not create a root `PR-PLAN.md` on an integration branch; the root plan is created only when implementation work begins.
 
 ## GitHub metadata
 
@@ -393,7 +400,9 @@ The draft protocol should remain coherent under at least these scenarios:
 21. A trivial implementation PR can satisfy the plan contract with a compact Goal / Scope / Verify plan rather than boilerplate.
 22. A fresh agent can resume an active PR by reading its issue, root `PR-PLAN.md`, latest relevant PR comments, and lease record without receiving a copied chat handoff.
 23. Review can compare the implementation against the durable issue contract plus the current `PR-PLAN.md`, while mutable Draft/Ready and writer state remain in GitHub.
-24. Durable plan knowledge is reviewed before cleanup. After review is otherwise clean, a leased Draft writing run deletes root `PR-PLAN.md`; required review and checks still pass for the final HEAD before merge, so the integration branch never accumulates stale PR plans.
+24. Durable plan knowledge is reviewed before cleanup. After review is otherwise clean, the standing-authorized finalizer deletes only root `PR-PLAN.md` while the PR remains Ready; this deletion alone does not require substantive re-review, and the integration branch never accumulates stale PR plans.
+25. A leased writer can perform routine in-scope, non-destructive repository work without repeatedly seeking human approval, while destructive, external, merge, history-rewrite, and scope-changing actions remain outside the standing authorization.
+26. An agent with a safe current project worktree switches that worktree to the PR branch instead of creating a new workspace; if local changes make the switch unsafe, the agent preserves them and falls back to a separate worktree without auto-stashing or discarding work.
 
 ## Open questions for 0.2.0
 
@@ -404,3 +413,4 @@ The draft protocol should remain coherent under at least these scenarios:
 - Whether stronger atomic lease mechanics, transfer tooling, approval-pause tooling, or stale-lease detection are needed in practice.
 - How `le continuum check` and `le continuum update` should detect and migrate protocol versions.
 - Whether a future merge-ready check should automatically reject an implementation PR whose temporary root `PR-PLAN.md` has not yet been deleted.
+- Whether the finalizer should eventually be implemented as a GitHub App/Action in addition to the repository-local helper once cross-repository check-trigger behavior is standardized.
