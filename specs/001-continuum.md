@@ -67,7 +67,7 @@ Keep responsibilities explicit:
 
 `PR-PLAN.md` must not duplicate mutable workflow state such as the current writer, current HEAD, latest test run, or review status. If durable scope or acceptance changes during implementation, record that change on the issue and synchronize the plan. If durable repository knowledge is discovered, promote it to the appropriate spec, documentation, test, code, or issue rather than leaving it only in the plan.
 
-The plan remains present through implementation and review. Promote durable knowledge before review is complete; repository changes made for that promotion require review. Once review is otherwise clean, use the repository's Continuum finalizer to create a cleanup-only commit that deletes root `PR-PLAN.md` and changes nothing else. This narrow finalization step is standing-authorized, may run while the PR remains Ready, and does not require a normal write lease or substantive re-review. Repository rules may still mechanically require checks or approval on the new HEAD. The temporary root plan must never land on the integration branch. If substantive implementation resumes after cleanup, return the PR to Draft, acquire a lease, and recreate the root plan before other implementation changes.
+The plan remains present through implementation and review. Promote durable knowledge before review is complete; repository changes made for that promotion require review. Once review is otherwise clean, run `bash scripts/continuum-finalize-pr.sh` when the installed helper is available. It refuses tracked dirty work, verifies that the current branch belongs to an open Ready PR, and creates/pushes a cleanup-only commit deleting root `PR-PLAN.md`. If the helper is unavailable, the equivalent standing-authorized fallback is to `git rm PR-PLAN.md`, commit only that deletion as `chore: remove temporary PR plan`, and push normally. This narrow finalization step may run while the PR remains Ready and does not require a normal write lease or substantive re-review. Repository rules may still mechanically require checks or approval on the new HEAD. The temporary root plan must never land on the integration branch. If substantive implementation resumes after cleanup, return the PR to Draft, acquire a lease, and recreate the root plan before other implementation changes.
 
 A repository may ship a durable starter at `templates/PR-PLAN.md`. That template is not the per-PR temporary plan and may remain on the integration branch.
 
@@ -319,7 +319,7 @@ Branch listings are secondary diagnostics, not the canonical project overview.
 
 A repository participates in Continuum when it contains a root `CONTINUUM.md`.
 
-`AGENTS.md` should contain a small pointer directing agents to read it. Installers must preserve unrelated `AGENTS.md` content and should own only a clearly delimited managed section.
+`AGENTS.md` should contain a small pointer directing agents to read it, plus a compact note that Continuum's standing authorization covers routine in-scope, non-destructive PR work where the harness permits repository policy to grant approval. Installers must preserve unrelated `AGENTS.md` content and should own only a clearly delimited managed section.
 
 If a repository has multiple long-lived accepted integration bases from which Continuum work may begin, each base should carry compatible Continuum discovery files or project policy must provide an equally reliable discovery path. A fresh agent starting from any accepted base should not silently miss the protocol.
 
@@ -329,7 +329,7 @@ The planned installer is:
 le add continuum
 ```
 
-It is not implemented yet. The installer should be idempotent. Installation may include a durable `templates/PR-PLAN.md` starter and the standard Continuum PR-plan finalizer helper, but must not create a root `PR-PLAN.md` on an integration branch; the root plan is created only when implementation work begins.
+It is not implemented yet. The installer should be idempotent. Installation may include a durable `templates/PR-PLAN.md` starter and install the standard helper at `scripts/continuum-finalize-pr.sh`, but must not create a root `PR-PLAN.md` on an integration branch; the root plan is created only when implementation work begins.
 
 ## GitHub metadata
 
@@ -400,7 +400,7 @@ The draft protocol should remain coherent under at least these scenarios:
 21. A trivial implementation PR can satisfy the plan contract with a compact Goal / Scope / Verify plan rather than boilerplate.
 22. A fresh agent can resume an active PR by reading its issue, root `PR-PLAN.md`, latest relevant PR comments, and lease record without receiving a copied chat handoff.
 23. Review can compare the implementation against the durable issue contract plus the current `PR-PLAN.md`, while mutable Draft/Ready and writer state remain in GitHub.
-24. Durable plan knowledge is reviewed before cleanup. After review is otherwise clean, the standing-authorized finalizer deletes only root `PR-PLAN.md` while the PR remains Ready; this deletion alone does not require substantive re-review, and the integration branch never accumulates stale PR plans.
+24. Durable plan knowledge is reviewed before cleanup. After review is otherwise clean, `bash scripts/continuum-finalize-pr.sh` (or its exact manual fallback) deletes only root `PR-PLAN.md` while the PR remains Ready; this deletion alone does not require substantive re-review, and the integration branch never accumulates stale PR plans.
 25. A leased writer can perform routine in-scope, non-destructive repository work without repeatedly seeking human approval, while destructive, external, merge, history-rewrite, and scope-changing actions remain outside the standing authorization.
 26. An agent with a safe current project worktree switches that worktree to the PR branch instead of creating a new workspace; if local changes make the switch unsafe, the agent preserves them and falls back to a separate worktree without auto-stashing or discarding work.
 
