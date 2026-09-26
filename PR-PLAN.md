@@ -17,6 +17,9 @@ large chat handoffs.
   self-hosted copy;
 - add a durable `templates/PR-PLAN.md` starter;
 - update README and self-check coverage;
+- add a standard finalizer helper so deleting the temporary plan is a mechanical, pre-authorized operation rather than an ad hoc cleanup run;
+- make routine in-scope, non-destructive actions on a leased Continuum PR standing-authorized unless project or higher-precedence policy narrows that authority;
+- prefer checking out the PR branch in the existing project worktree when it is safe, with separate worktrees as a fallback rather than the default;
 - dogfood the new rule with this temporary root plan.
 
 ## Design
@@ -33,9 +36,11 @@ Every implementation PR gets the file, but its size is proportional to the work.
 A trivial PR may use only Goal, Scope, and Verify.
 
 The root plan must not land on the integration branch. Promote durable knowledge
-before review is complete. Once review is otherwise clean, use a leased Draft
-writing run to delete `PR-PLAN.md` in a final non-substantive cleanup commit.
-Confirm required review and checks still pass for the final HEAD before merge.
+before review is complete. Once review is otherwise clean, use the standard
+finalizer to delete `PR-PLAN.md` as a narrow cleanup-only commit. That
+finalization is standing-authorized and does not require reopening implementation
+or acquiring a normal write lease. Normal repository checks may still run on the
+new HEAD before merge.
 
 ## Verify
 
@@ -44,4 +49,6 @@ Confirm required review and checks still pass for the final HEAD before merge.
 - confirm the durable template is present;
 - confirm protocol acceptance scenarios cover creation, recovery/handoff, review,
   and pre-merge deletion;
+- verify the finalizer refuses tracked dirty work and removes only the root plan;
+- confirm execution authorization and in-place worktree preference are explicit;
 - confirm this PR retains its temporary root plan until review is otherwise clean.
