@@ -4,6 +4,8 @@ set -euo pipefail
 root=CONTINUUM.md
 template=templates/CONTINUUM.md
 pr_plan_template=templates/PR-PLAN.md
+finalizer=scripts/continuum-finalize-pr.sh
+finalizer_template=templates/continuum-finalize-pr.sh
 spec=specs/001-continuum.md
 agents=AGENTS.md
 
@@ -21,6 +23,14 @@ grep -Fq '## Goal' "$pr_plan_template"
 grep -Fq '## Scope' "$pr_plan_template"
 grep -Fq '## Verify' "$pr_plan_template"
 grep -Fq 'delete the root' "$pr_plan_template"
+
+test -f "$finalizer"
+test -f "$finalizer_template"
+cmp "$finalizer" "$finalizer_template"
+bash -n "$finalizer"
+grep -Fq 'git rm -- "$plan"' "$finalizer"
+grep -Fq 'gh pr view --json state,isDraft,headRefName' "$finalizer"
+grep -Fq 'git push' "$finalizer"
 
 grep -Fq '{{issues_url}}' "$template"
 grep -Fq '{{pull_requests_url}}' "$template"
@@ -41,6 +51,7 @@ fi
 
 grep -Fq '<!-- leftium:continuum:start -->' "$agents"
 grep -Fq 'Read `CONTINUUM.md` before coordinating or modifying work.' "$agents"
+grep -Fq 'standing authorization covers routine in-scope, non-destructive repository actions' "$agents"
 grep -Fq '<!-- leftium:continuum:end -->' "$agents"
 
 normalized=$(mktemp)
