@@ -1,4 +1,4 @@
-# Continuum protocol 0.1.0-draft
+# Continuum protocol 0.2.0-draft
 
 ## Status
 
@@ -11,6 +11,7 @@ Continuum should:
 - support multiple agents without requiring shared hidden context;
 - support safe concurrent work on independent issues;
 - make handoffs durable and explicit;
+- keep detailed implementation plans with their PR branches instead of requiring chat-copy handoffs;
 - use GitHub-native objects instead of parallel project-management files where practical;
 - work with partial GitHub API access by falling back to exact `gh` CLI commands for humans;
 - keep the protocol light enough to add to ordinary repositories.
@@ -50,6 +51,25 @@ A run must leave a durable handoff in the issue or linked PR when responsibility
 A PR represents implementation work for an issue.
 
 Implementation branches and PRs should be created only when work starts. Future planned work should remain issues rather than pre-created branches.
+
+### PR plan
+
+Every Continuum implementation PR must carry a root `PR-PLAN.md` on its implementation branch. The plan is temporary shared working memory for that PR, not a long-lived project-management file.
+
+The file is created as the initial branch commit before the Draft PR is opened. Its size is proportional to the change: a trivial PR may need only Goal, Scope, and Verify, while a complex PR may include checkpoints, architecture notes, historical evidence, risks, and detailed acceptance checks.
+
+Keep responsibilities explicit:
+
+- the GitHub issue owns the durable goal, scope, acceptance criteria, dependencies, and product/project decisions;
+- `PR-PLAN.md` owns the temporary implementation contract for this PR: approach, checkpoints, evidence, verification plan, and implementation-level decisions;
+- PR comments own checkpoint commit IDs/results, review findings, fix handoffs, and implementation history;
+- GitHub fields and the latest lease record own mutable workflow state such as Draft/Ready and current writer.
+
+`PR-PLAN.md` must not duplicate mutable workflow state such as the current writer, current HEAD, latest test run, or review status. If durable scope or acceptance changes during implementation, record that change on the issue and synchronize the plan. If durable repository knowledge is discovered, promote it to the appropriate spec, documentation, test, code, or issue rather than leaving it only in the plan.
+
+The plan remains present through implementation and review. After review is otherwise clean, promote any remaining durable knowledge, delete root `PR-PLAN.md` in a final non-substantive cleanup commit, and confirm it is absent before merge. The temporary root plan must never land on the integration branch.
+
+A repository may ship a durable starter at `templates/PR-PLAN.md`. That template is not the per-PR temporary plan and may remain on the integration branch.
 
 ### Write lease
 
@@ -140,7 +160,7 @@ Typical lifecycle for one issue:
 ```text
 open ready issue
   -> acquisition claim; writer recorded
-  -> branch + initial commit
+  -> branch + initial PR-PLAN.md commit
   -> draft PR; no active lease
       -> writing run acquires lease at current HEAD
       -> write
@@ -152,7 +172,10 @@ open ready issue
       -> repeat as needed
   -> implementation complete + verified
   -> ready PR; no active lease
-      -> approved -> merged
+      -> review clean
+          -> promote durable plan knowledge
+          -> delete PR-PLAN.md in final non-substantive cleanup commit
+          -> merged
       -> changes requested
           -> draft PR
           -> writing run acquires lease
@@ -182,7 +205,7 @@ handoff prose
   = explanatory context
 ```
 
-Tracked files and PR bodies should describe durable policy, scope, rationale, and facts instead of copying mutable GitHub state, such as Draft/Ready status, review stage, or the current writer. If prose becomes stale, live GitHub state and the latest durable writer record remain authoritative.
+Tracked long-lived files and PR bodies should describe durable policy, scope, rationale, and facts instead of copying mutable GitHub state, such as Draft/Ready status, review stage, or the current writer. The temporary branch-local `PR-PLAN.md` is the exception for implementation detail: it may evolve with the branch, but it still must not copy mutable workflow state. If prose becomes stale, live GitHub state and the latest durable writer record remain authoritative.
 
 A fresh capable agent should normally be able to determine:
 - the current workflow state;
@@ -205,7 +228,9 @@ For the standard implementation lifecycle:
 
 ```text
 open ready issue, no implementation PR
-  -> record writer and acquire enough authority to create branch + draft PR
+  -> record writer and acquire enough authority to create branch
+  -> create root PR-PLAN.md as the initial branch commit
+  -> create draft PR
 
 draft implementation PR, no lease
   -> implementation is incomplete and available for a writing run
@@ -223,7 +248,12 @@ end of writing run
   -> remain Draft unless implementation is complete
 
 ready implementation PR
-  -> no active lease; branch is write-stopped and review or handoff may begin
+  -> no active lease; branch is write-stopped and review against the issue + PR-PLAN.md may begin
+
+review otherwise clean
+  -> promote durable plan knowledge
+  -> delete root PR-PLAN.md in a final non-substantive cleanup commit
+  -> confirm the temporary plan is absent before merge
 
 review requests changes
   -> convert PR to Draft, acquire lease at current HEAD, implement fixes, verify, release lease, then return to Ready
@@ -255,7 +285,9 @@ A durable handoff should include only information needed by the next agent:
 - unresolved questions or blockers;
 - linked issue, PR, or commit identifiers where useful.
 
-Prefer putting durable product/scope decisions, blockers, dependencies, and acceptance changes on the issue. Prefer putting implementation checkpoints, commit identifiers, verification, review findings, and fix-pass handoffs on the PR. Cross-link instead of duplicating long mutable handoffs across both objects.
+Prefer putting durable product/scope decisions, blockers, dependencies, and acceptance changes on the issue. Prefer putting implementation checkpoints, commit identifiers, verification, review findings, and fix-pass handoffs on the PR. Keep detailed implementation planning in root `PR-PLAN.md` while the PR is active.
+
+When a plan already contains the implementation context, a handoff should normally point the next agent to the issue, PR, `PR-PLAN.md`, and latest relevant PR comment instead of copying the plan into chat or another comment.
 
 Handoffs should not depend on chat history.
 
@@ -268,7 +300,9 @@ A returning human or agent should be able to reconstruct state by:
 3. inspecting a milestone when an issue is assigned to one;
 4. inspecting issue dependency relationships;
 5. inspecting linked PRs;
-6. interpreting each Draft PR as incomplete implementation that may or may not have an active run-scoped lease, and each Ready PR as write-stopped with no active lease and available for review or handoff.
+6. reading root `PR-PLAN.md` on each active implementation branch;
+7. inspecting the latest relevant PR comments and lease record;
+8. interpreting each Draft PR as incomplete implementation that may or may not have an active run-scoped lease, and each Ready PR as write-stopped with no active lease and available for review or handoff.
 
 Branch listings are secondary diagnostics, not the canonical project overview.
 
@@ -286,7 +320,7 @@ The planned installer is:
 le add continuum
 ```
 
-It is not implemented yet. The installer should be idempotent.
+It is not implemented yet. The installer should be idempotent. Installation may include a durable `templates/PR-PLAN.md` starter, but must not create a root `PR-PLAN.md` on an integration branch; the root plan is created only when implementation work begins.
 
 ## GitHub metadata
 
@@ -321,6 +355,8 @@ During the draft phase:
 - minor releases represent meaningful protocol revisions;
 - patch releases represent compatible clarifications or fixes where practical.
 
+Version 0.2.0 adds the required temporary branch-local `PR-PLAN.md` lifecycle for implementation PRs.
+
 After `1.0.0`:
 - patch = behavior-preserving clarification or fix;
 - minor = backward-compatible capability;
@@ -351,8 +387,13 @@ The draft protocol should remain coherent under at least these scenarios:
 17. A private or stale handoff that conflicts with current GitHub state does not override the shared state.
 18. A project-specific relational constraint, such as independent review, can be discovered by a fresh agent without encoding permanent agent identities.
 19. A fresh agent starting from any accepted long-lived integration base can discover that the repository uses Continuum.
+20. Starting any implementation PR creates root `PR-PLAN.md` as the initial branch commit before the Draft PR is opened.
+21. A trivial implementation PR can satisfy the plan contract with a compact Goal / Scope / Verify plan rather than boilerplate.
+22. A fresh agent can resume an active PR by reading its issue, root `PR-PLAN.md`, latest relevant PR comments, and lease record without receiving a copied chat handoff.
+23. Review can compare the implementation against the durable issue contract plus the current `PR-PLAN.md`, while mutable Draft/Ready and writer state remain in GitHub.
+24. After review is otherwise clean, durable plan knowledge is promoted and root `PR-PLAN.md` is deleted before merge, so the integration branch never accumulates stale PR plans.
 
-## Open questions for 0.1.0
+## Open questions for 0.2.0
 
 - Exact machine-readable representation for run-scoped lease acquisition, ownership, and release.
 - Whether Continuum should standardize optional agent labels.
@@ -360,3 +401,4 @@ The draft protocol should remain coherent under at least these scenarios:
 - Exact native dependency and sub-issue conventions across current `gh` versions.
 - Whether stronger atomic lease mechanics, transfer tooling, approval-pause tooling, or stale-lease detection are needed in practice.
 - How `le continuum check` and `le continuum update` should detect and migrate protocol versions.
+- Whether a future merge-ready check should automatically reject an implementation PR whose temporary root `PR-PLAN.md` has not yet been deleted.
