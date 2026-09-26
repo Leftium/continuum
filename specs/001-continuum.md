@@ -67,7 +67,7 @@ Keep responsibilities explicit:
 
 `PR-PLAN.md` must not duplicate mutable workflow state such as the current writer, current HEAD, latest test run, or review status. If durable scope or acceptance changes during implementation, record that change on the issue and synchronize the plan. If durable repository knowledge is discovered, promote it to the appropriate spec, documentation, test, code, or issue rather than leaving it only in the plan.
 
-The plan remains present through implementation and review. After review is otherwise clean, promote any remaining durable knowledge, delete root `PR-PLAN.md` in a final non-substantive cleanup commit, and confirm it is absent before merge. The temporary root plan must never land on the integration branch.
+The plan remains present through implementation and review. After review is otherwise clean, promote any remaining durable knowledge, delete root `PR-PLAN.md` in a final non-substantive cleanup commit, and confirm it is absent before merge. The temporary root plan must never land on the integration branch. If substantive implementation resumes after that cleanup, return the PR to Draft and recreate/update the root plan before writing.
 
 A repository may ship a durable starter at `templates/PR-PLAN.md`. That template is not the per-PR temporary plan and may remain on the integration branch.
 
@@ -97,7 +97,7 @@ Because a Draft PR normally requires a branch and commit first, an issue may car
 
 1. verify the issue is ready to begin;
 2. record the intended writer durably on the issue;
-3. that claim authorizes only the bootstrap work needed to create the implementation branch, initial commit, push, and Draft PR;
+3. that claim authorizes only the bootstrap work needed to create the implementation branch, the initial root `PR-PLAN.md` commit, push, and Draft PR;
 4. once the Draft PR exists, the bootstrap claim ends; before further writes, acquire the PR branch's run-scoped lease.
 
 The acquisition claim is issue-scoped. It must not be interpreted as repository-wide ownership. If acquisition is abandoned before a Draft PR exists, the recorded writer or a human may release or reassign the claim. The release or reassignment must be recorded durably on the issue before another writer proceeds.
