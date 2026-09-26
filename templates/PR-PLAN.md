@@ -11,8 +11,10 @@ Do not record mutable workflow state here: current writer, current HEAD,
 Draft/Ready status, latest test result, and review status belong in GitHub or PR
 comments.
 
-Before merge, promote durable knowledge to its proper home and delete the root
-PR-PLAN.md from the implementation branch. This template remains in templates/.
+Before merge, promote durable knowledge to its proper home. After review is
+otherwise clean, run `bash scripts/continuum-finalize-pr.sh` when available to
+delete the root PR-PLAN.md in the cleanup-only final commit. This template remains
+in templates/.
 -->
 
 ## Goal
