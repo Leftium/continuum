@@ -27,7 +27,7 @@ The protocol is currently a **draft**. The current target is version **0.2.0**.
 - `specs/001-continuum.md` - draft protocol specification.
 - `templates/CONTINUUM.md` - draft template intended for installation into other repositories.
 - `templates/PR-PLAN.md` - compact starter for the temporary per-PR root plan.
-- `scripts/continuum-finalize-pr.sh` - safe final cleanup that deletes only the temporary root plan, commits, and pushes.
+- `scripts/continuum-finalize-pr.sh` - safe final cleanup; run it with `bash scripts/continuum-finalize-pr.sh` after review is otherwise clean to delete only the temporary root plan, commit, and push.
 - `templates/continuum-finalize-pr.sh` - installable copy of that finalizer.
 - `scripts/check-continuum.sh` - self-hosting consistency check.
 
