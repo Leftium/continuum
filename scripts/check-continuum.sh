@@ -3,6 +3,7 @@ set -euo pipefail
 
 root=CONTINUUM.md
 template=templates/CONTINUUM.md
+pr_plan_template=templates/PR-PLAN.md
 spec=specs/001-continuum.md
 agents=AGENTS.md
 
@@ -14,9 +15,19 @@ test -n "$root_version"
 test "$root_version" = "$template_version"
 test "$root_version" = "$spec_version"
 
+test -f "$pr_plan_template"
+grep -Fq '# PR Plan' "$pr_plan_template"
+grep -Fq '## Goal' "$pr_plan_template"
+grep -Fq '## Scope' "$pr_plan_template"
+grep -Fq '## Verify' "$pr_plan_template"
+grep -Fq 'delete the root' "$pr_plan_template"
+
 grep -Fq '{{issues_url}}' "$template"
 grep -Fq '{{pull_requests_url}}' "$template"
 grep -Fq '{{milestones_url}}' "$template"
+grep -Fq 'PR-PLAN.md' "$template"
+grep -Fq 'PR-PLAN.md' "$root"
+grep -Fq 'PR-PLAN.md' "$spec"
 
 if grep -Eq '<(issues|pull-requests|milestones)-url>' "$template"; then
   echo "legacy angle-bracket URL placeholder found" >&2
