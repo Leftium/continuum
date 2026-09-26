@@ -3,6 +3,9 @@ set -euo pipefail
 
 root=CONTINUUM.md
 template=templates/CONTINUUM.md
+pr_plan_template=templates/PR-PLAN.md
+finalizer=scripts/continuum-finalize-pr.sh
+finalizer_template=templates/continuum-finalize-pr.sh
 spec=specs/001-continuum.md
 agents=AGENTS.md
 
@@ -14,9 +17,27 @@ test -n "$root_version"
 test "$root_version" = "$template_version"
 test "$root_version" = "$spec_version"
 
+test -f "$pr_plan_template"
+grep -Fq '# PR Plan' "$pr_plan_template"
+grep -Fq '## Goal' "$pr_plan_template"
+grep -Fq '## Scope' "$pr_plan_template"
+grep -Fq '## Verify' "$pr_plan_template"
+grep -Fq 'delete the root' "$pr_plan_template"
+
+test -f "$finalizer"
+test -f "$finalizer_template"
+cmp "$finalizer" "$finalizer_template"
+bash -n "$finalizer"
+grep -Fq 'git rm -- "$plan"' "$finalizer"
+grep -Fq 'gh pr view --json state,isDraft,headRefName' "$finalizer"
+grep -Fq 'git push' "$finalizer"
+
 grep -Fq '{{issues_url}}' "$template"
 grep -Fq '{{pull_requests_url}}' "$template"
 grep -Fq '{{milestones_url}}' "$template"
+grep -Fq 'PR-PLAN.md' "$template"
+grep -Fq 'PR-PLAN.md' "$root"
+grep -Fq 'PR-PLAN.md' "$spec"
 
 if grep -Eq '<(issues|pull-requests|milestones)-url>' "$template"; then
   echo "legacy angle-bracket URL placeholder found" >&2
@@ -30,6 +51,7 @@ fi
 
 grep -Fq '<!-- leftium:continuum:start -->' "$agents"
 grep -Fq 'Read `CONTINUUM.md` before coordinating or modifying work.' "$agents"
+grep -Fq 'standing authorization covers routine in-scope, non-destructive repository actions' "$agents"
 grep -Fq '<!-- leftium:continuum:end -->' "$agents"
 
 normalized=$(mktemp)
