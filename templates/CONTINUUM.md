@@ -1,5 +1,5 @@
 ---
-continuum: 0.1.0
+continuum: 0.2.0
 status: draft
 ---
 
@@ -29,6 +29,7 @@ Agents:
 - GitHub milestones optionally group larger outcomes.
 - Issue relationships express ordering and dependencies; avoid sequence numbers when possible.
 - Create implementation branches and pull requests only when work actually starts.
+- Every implementation PR carries a temporary root `PR-PLAN.md` on its branch. The file is created before the Draft PR and deleted before merge.
 - Prefer the GitHub connector when available. If a required operation is unavailable, give the human an exact `gh` CLI command.
 
 ## Write leases
@@ -59,18 +60,42 @@ Prefer issue comments for durable product and scope decisions, blockers, depende
 
 When implementation begins:
 1. record the intended writer in the issue;
-2. create a fresh branch from the accepted base and make the initial commit;
-3. create a Draft PR linked to the issue;
-4. acquire the branch's run-scoped lease before further writes;
-5. release the lease before the writing turn yields or ends.
+2. create a fresh branch from the accepted base;
+3. create root `PR-PLAN.md` as the initial branch commit;
+4. create a Draft PR linked to the issue;
+5. acquire the branch's run-scoped lease before further writes;
+6. release the lease before the writing turn yields or ends.
 
 When implementation finishes:
 1. verify the work;
 2. update the PR and issue with durable results;
 3. release any active write lease;
 4. mark the PR Ready;
-5. review and merge;
-6. close the issue when its acceptance criteria are satisfied.
+5. review the implementation against the issue and `PR-PLAN.md`;
+6. once review is otherwise clean, promote durable plan knowledge and delete root `PR-PLAN.md` in a final non-substantive cleanup commit;
+7. confirm root `PR-PLAN.md` is absent, then merge;
+8. close the issue when its acceptance criteria are satisfied.
+
+## PR plan
+
+Every Continuum implementation PR uses a root `PR-PLAN.md` as temporary shared working memory for that branch.
+
+Keep the responsibilities separate:
+
+- **Issue**: durable goal, scope, acceptance criteria, dependencies, and product/project decisions.
+- **`PR-PLAN.md`**: implementation approach, checkpoints, evidence, verification plan, and implementation-level decisions needed to complete and review this PR.
+- **PR comments**: checkpoint commits and results, review findings, fix handoffs, and other implementation history.
+- **GitHub state**: Draft/Ready lifecycle and run-scoped write-lease ownership.
+
+The plan is required, but its size is proportional to the work. A trivial change may need only Goal, Scope, and Verify. Do not add empty boilerplate merely to make the file longer.
+
+Do not copy mutable workflow state into the plan. In particular, current writer, current HEAD, Draft/Ready status, latest test result, and review status belong in GitHub or PR comments.
+
+Keep the plan synchronized when the implementation approach materially changes. Durable scope or acceptance changes belong on the issue first; durable repository knowledge belongs in specs, docs, tests, or code as appropriate.
+
+The root plan is temporary and must not land on the integration branch. After review is otherwise clean, promote any durable knowledge out of `PR-PLAN.md`, delete the root file in a final non-substantive cleanup commit, and confirm it is absent before merge. A durable starter template may live at `templates/PR-PLAN.md`; that template is not the temporary branch plan.
+
+Handoffs should normally point the next agent to the issue, PR, root `PR-PLAN.md`, and latest relevant PR comment rather than reproducing the plan in chat.
 
 ## Recovery
 
