@@ -67,7 +67,11 @@ Keep responsibilities explicit:
 
 `PR-PLAN.md` must not duplicate mutable workflow state such as the current writer, current HEAD, latest test run, or review status. If durable scope or acceptance changes during implementation, record that change on the issue and synchronize the plan. If durable repository knowledge is discovered, promote it to the appropriate spec, documentation, test, code, or issue rather than leaving it only in the plan.
 
-The plan remains present through implementation and review. Promote durable knowledge before review is complete; repository changes made for that promotion require review. Once review is otherwise clean, run `bash scripts/continuum-finalize-pr.sh` when the installed helper is available. It refuses tracked dirty work, verifies that the current branch belongs to an open Ready PR, and creates/pushes a cleanup-only commit deleting root `PR-PLAN.md`. If the helper is unavailable, the equivalent standing-authorized fallback is to `git rm PR-PLAN.md`, commit only that deletion as `chore: remove temporary PR plan`, and push normally. This narrow finalization step may run while the PR remains Ready and does not require a normal write lease or substantive re-review. Repository rules may still mechanically require checks or approval on the new HEAD. The temporary root plan must never land on the integration branch. If substantive implementation resumes after cleanup, return the PR to Draft, acquire a lease, and recreate the root plan before other implementation changes.
+The plan remains present through implementation and review. Promote durable knowledge before review is complete; repository changes made for that promotion require review.
+
+The caller must confirm review is otherwise clean; the helper cannot determine that from GitHub state. Then run `bash scripts/continuum-finalize-pr.sh` when the installed helper is available. It refuses tracked dirty work or a local HEAD that differs from the PR, verifies that the current branch belongs to an open Ready PR, and creates/pushes a cleanup-only commit deleting root `PR-PLAN.md`. If the helper is unavailable, the equivalent standing-authorized fallback is to `git rm PR-PLAN.md`, commit only that deletion as `chore: remove temporary PR plan`, and push normally.
+
+This narrow finalization step may run while the PR remains Ready and does not require a normal write lease or substantive re-review. Repository rules may still mechanically require checks or approval on the new HEAD. The temporary root plan must never land on the integration branch. If substantive implementation resumes after cleanup, return the PR to Draft, acquire a lease, and recreate the root plan before other implementation changes.
 
 A repository may ship a durable starter at `templates/PR-PLAN.md`. That template is not the per-PR temporary plan and may remain on the integration branch.
 
@@ -86,12 +90,12 @@ A write lease grants one recorded writer exclusive permission to modify one impl
 PR lifecycle state and write ownership are separate:
 
 - Draft = implementation is still open. A Draft PR may be unleased between writing runs.
-- Ready = implementation is write-stopped and available for review or handoff. A Ready PR must not have an active write lease.
+- Ready = implementation is write-stopped and available for review or handoff. A Ready PR must not have an active write lease. The cleanup-only PR-plan finalizer is the sole branch-write exception.
 - Write lease = one recorded writer may modify the Draft PR's branch for the current writing run.
 
 Each lease is scoped to one implementation branch and its PR, not the repository. Multiple Draft implementation PRs may coexist when their work can safely proceed concurrently, and each may be either leased or unleased.
 
-Before modifying an existing implementation branch, a writer must verify the current branch HEAD and durably acquire the lease. Prefer a simple explicit record such as `Writer: T3 / Codex`; the latest unreleased writer record is the cooperative lease-owner record unless project policy defines another representation. Non-owners may inspect and review the branch but must not write to it.
+Before modifying an existing implementation branch, a writer must verify the current branch HEAD and durably acquire the lease, except for the cleanup-only PR-plan finalizer described above. Prefer a simple explicit record such as `Writer: T3 / Codex`; the latest unreleased writer record is the cooperative lease-owner record unless project policy defines another representation. Non-owners may inspect and review the branch but must not make implementation changes.
 
 A writing run must release its lease before yielding control to the human or ending normally, even when implementation remains incomplete. Releasing a lease does not make a Draft PR Ready. The normal resting state for incomplete work is therefore Draft + no active lease.
 
@@ -386,7 +390,7 @@ The draft protocol should remain coherent under at least these scenarios:
 7. A normal writing run releases its lease before yielding or ending, even when the PR remains Draft and implementation is incomplete.
 8. The same writer or another writer may later acquire an unleased Draft PR at its current checkpoint without passing through Ready.
 9. Two independent Draft PRs may be worked concurrently by different writers when each holds only its own branch lease.
-10. A Ready PR has no active write lease and is unambiguously write-stopped and available for review or handoff.
+10. A Ready PR has no active write lease and is write-stopped for implementation; only cleanup-only PR-plan finalization may change its branch before merge.
 11. Review-requested fixes do not begin until the PR returns to Draft and a writer acquires its run-scoped lease.
 12. A writer blocked on required approval before commit or push may yield with a durably recorded suspended lease; no other writer may acquire the branch during that pause.
 13. After approval, the suspended writer can resume, create the durable checkpoint, and release normally; if the human abandons the run instead, lease recovery explicitly accepts that unpushed work may be discarded.

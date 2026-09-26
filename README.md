@@ -17,7 +17,7 @@ The protocol is currently a **draft**. The current target is version **0.2.0**.
 - A **write lease** is run-scoped: one writer acquires it before branch writes and releases it before yielding or ending normally.
 - If required human approval blocks commit or push, the lease may be explicitly **suspended** across that approval pause; ownership does not transfer.
 - Multiple independent draft PRs may coexist, each leased or unleased.
-- A **ready pull request** is unleased and write-stopped so review or handoff may begin.
+- A **ready pull request** is unleased and write-stopped for implementation. The cleanup-only plan finalizer may still run after review.
 - Live workflow state stays in GitHub. `CONTINUUM.md` defines how agents and humans interpret that state.
 
 ## Repository layout

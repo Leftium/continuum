@@ -18,7 +18,7 @@ Agents:
 1. Read this file before coordinating or modifying work.
 2. Inspect open Continuum issues and pull requests.
 3. Treat current Git and GitHub state, together with tracked project policy, as authoritative over stale or private handoff prose.
-4. Do not modify an implementation branch unless you hold its run-scoped write lease.
+4. Do not modify an implementation branch without its run-scoped write lease, except for the cleanup-only PR-plan finalizer described below.
 5. Release any write lease before yielding control or ending a normal writing turn, unless the lease is explicitly suspended while waiting for required human approval.
 6. Live workflow state belongs in GitHub; do not duplicate mutable state in this file.
 
@@ -50,8 +50,8 @@ A lease is scoped to one implementation branch and one active writing run. Draft
 - **Releasing**: before yielding control or ending normally, commit and push the coherent checkpoint, record any needed handoff, durably release the lease, and stop writing. Incomplete work remains Draft + no active lease.
 - **Approval pause**: if required human approval blocks commit, push, or another operation needed to create that checkpoint, durably record the blocked operation and suspend the lease while yielding. The same writer retains ownership; no other writer may acquire the branch. After approval, resume, create the checkpoint, and release normally. If the human abandons the suspended run, lease recovery explicitly accepts that uncommitted or unpushed work may be discarded.
 - **Transfer**: a new writer acquires the unleased Draft PR at its verified checkpoint. Transfer is logically release + acquire; Ready is not required.
-- **Ready PR**: implementation is write-stopped, has no active lease, and is available for review or handoff.
-- Agents that do not hold a branch's lease may inspect and review it but must not write to it.
+- **Ready PR**: implementation is write-stopped, has no active lease, and is available for review or handoff. The cleanup-only PR-plan finalizer is the sole branch-write exception.
+- Agents that do not hold a branch's lease may inspect and review it but must not make implementation changes.
 - Concurrent leases are allowed unless issue dependencies or project policy make the work unsafe to overlap.
 
 If review requests changes, convert the PR back to Draft, acquire a run-scoped lease at the current HEAD, apply and verify fixes, release the lease, and return the PR to Ready only when implementation is complete again.
@@ -103,7 +103,11 @@ Do not copy mutable workflow state into the plan. In particular, current writer,
 
 Keep the plan synchronized when the implementation approach materially changes. Durable scope or acceptance changes belong on the issue first; durable repository knowledge belongs in specs, docs, tests, or code as appropriate.
 
-The root plan is temporary and must not land on the integration branch. Promote durable knowledge before review is complete. Once review is otherwise clean, run `bash scripts/continuum-finalize-pr.sh` when the installed helper is available. It refuses tracked dirty work, verifies that the current branch is an open Ready PR, and creates/pushes a cleanup-only commit deleting root `PR-PLAN.md`. If the helper is unavailable, the equivalent pre-authorized fallback is `git rm PR-PLAN.md`, commit only that deletion as `chore: remove temporary PR plan`, and push normally. This narrow finalization step is standing-authorized, may run while the PR remains Ready, and does not require a normal write lease or substantive re-review. Repository rules may still mechanically require checks or approval on the new HEAD. If substantive implementation resumes after cleanup, return the PR to Draft, acquire a lease, and recreate the root plan before other implementation changes. A durable starter template may live at `templates/PR-PLAN.md`; that template is not the temporary branch plan.
+The root plan is temporary and must not land on the integration branch. Promote durable knowledge before review is complete.
+
+The caller must confirm review is otherwise clean; the helper cannot determine that from GitHub state. Then run `bash scripts/continuum-finalize-pr.sh` when the installed helper is available. It refuses tracked dirty work or a local HEAD that differs from the PR, verifies that the current branch is an open Ready PR, and creates/pushes a cleanup-only commit deleting root `PR-PLAN.md`. If the helper is unavailable, the equivalent pre-authorized fallback is `git rm PR-PLAN.md`, commit only that deletion as `chore: remove temporary PR plan`, and push normally.
+
+This narrow finalization step is standing-authorized, may run while the PR remains Ready, and does not require a normal write lease or substantive re-review. Repository rules may still mechanically require checks or approval on the new HEAD. If substantive implementation resumes after cleanup, return the PR to Draft, acquire a lease, and recreate the root plan before other implementation changes. A durable starter template may live at `templates/PR-PLAN.md`; that template is not the temporary branch plan.
 
 Handoffs should normally point the next agent to the issue, PR, root `PR-PLAN.md`, and latest relevant PR comment rather than reproducing the plan in chat.
 
