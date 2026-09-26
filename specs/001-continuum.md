@@ -67,7 +67,7 @@ Keep responsibilities explicit:
 
 `PR-PLAN.md` must not duplicate mutable workflow state such as the current writer, current HEAD, latest test run, or review status. If durable scope or acceptance changes during implementation, record that change on the issue and synchronize the plan. If durable repository knowledge is discovered, promote it to the appropriate spec, documentation, test, code, or issue rather than leaving it only in the plan.
 
-The plan remains present through implementation and review. After review is otherwise clean, promote any remaining durable knowledge, delete root `PR-PLAN.md` in a final non-substantive cleanup commit, and confirm it is absent before merge. The temporary root plan must never land on the integration branch. If substantive implementation resumes after that cleanup, return the PR to Draft and recreate/update the root plan before writing.
+The plan remains present through implementation and review. Promote durable knowledge before review is complete; repository changes made for that promotion require review. Once review is otherwise clean, return the PR to Draft, acquire a lease, delete root `PR-PLAN.md` in a final non-substantive cleanup commit, release the lease, and return the PR to Ready. Confirm the plan is absent and required review and checks still pass for the final HEAD before merge. The temporary root plan must never land on the integration branch. If substantive implementation resumes after cleanup, return the PR to Draft, acquire a lease, and recreate the root plan before other implementation changes.
 
 A repository may ship a durable starter at `templates/PR-PLAN.md`. That template is not the per-PR temporary plan and may remain on the integration branch.
 
@@ -173,9 +173,10 @@ open ready issue
   -> implementation complete + verified
   -> ready PR; no active lease
       -> review clean
-          -> promote durable plan knowledge
+          -> draft PR; acquire lease
           -> delete PR-PLAN.md in final non-substantive cleanup commit
-          -> merged
+          -> release lease; ready PR
+          -> confirm required review and checks for final HEAD; merged
       -> changes requested
           -> draft PR
           -> writing run acquires lease
@@ -251,9 +252,10 @@ ready implementation PR
   -> no active lease; branch is write-stopped and review against the issue + PR-PLAN.md may begin
 
 review otherwise clean
-  -> promote durable plan knowledge
+  -> return to Draft and acquire lease at current HEAD
   -> delete root PR-PLAN.md in a final non-substantive cleanup commit
-  -> confirm the temporary plan is absent before merge
+  -> release lease and return to Ready
+  -> confirm the plan is absent and required review and checks still pass for the final HEAD before merge
 
 review requests changes
   -> convert PR to Draft, acquire lease at current HEAD, implement fixes, verify, release lease, then return to Ready
@@ -391,7 +393,7 @@ The draft protocol should remain coherent under at least these scenarios:
 21. A trivial implementation PR can satisfy the plan contract with a compact Goal / Scope / Verify plan rather than boilerplate.
 22. A fresh agent can resume an active PR by reading its issue, root `PR-PLAN.md`, latest relevant PR comments, and lease record without receiving a copied chat handoff.
 23. Review can compare the implementation against the durable issue contract plus the current `PR-PLAN.md`, while mutable Draft/Ready and writer state remain in GitHub.
-24. After review is otherwise clean, durable plan knowledge is promoted and root `PR-PLAN.md` is deleted before merge, so the integration branch never accumulates stale PR plans.
+24. Durable plan knowledge is reviewed before cleanup. After review is otherwise clean, a leased Draft writing run deletes root `PR-PLAN.md`; required review and checks still pass for the final HEAD before merge, so the integration branch never accumulates stale PR plans.
 
 ## Open questions for 0.2.0
 

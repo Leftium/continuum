@@ -32,9 +32,10 @@ Keep responsibility explicit:
 Every implementation PR gets the file, but its size is proportional to the work.
 A trivial PR may use only Goal, Scope, and Verify.
 
-The root plan must not land on the integration branch. After review is clean,
-promote durable knowledge and delete `PR-PLAN.md` in a final non-substantive
-cleanup commit before merge.
+The root plan must not land on the integration branch. Promote durable knowledge
+before review is complete. Once review is otherwise clean, use a leased Draft
+writing run to delete `PR-PLAN.md` in a final non-substantive cleanup commit.
+Confirm required review and checks still pass for the final HEAD before merge.
 
 ## Verify
 

@@ -72,9 +72,12 @@ When implementation finishes:
 3. release any active write lease;
 4. mark the PR Ready;
 5. review the implementation against the issue and `PR-PLAN.md`;
-6. once review is otherwise clean, promote durable plan knowledge and delete root `PR-PLAN.md` in a final non-substantive cleanup commit;
-7. confirm root `PR-PLAN.md` is absent, then merge;
-8. close the issue when its acceptance criteria are satisfied.
+6. promote durable plan knowledge, and review any repository changes before cleanup;
+7. once review is otherwise clean, return to Draft and acquire a lease at the current HEAD;
+8. delete root `PR-PLAN.md` in a final non-substantive cleanup commit;
+9. release the lease and mark the PR Ready again;
+10. confirm root `PR-PLAN.md` is absent and required review and checks still pass for the final HEAD, then merge;
+11. close the issue when its acceptance criteria are satisfied.
 
 ## PR plan
 
@@ -93,7 +96,7 @@ Do not copy mutable workflow state into the plan. In particular, current writer,
 
 Keep the plan synchronized when the implementation approach materially changes. Durable scope or acceptance changes belong on the issue first; durable repository knowledge belongs in specs, docs, tests, or code as appropriate.
 
-The root plan is temporary and must not land on the integration branch. After review is otherwise clean, promote any durable knowledge out of `PR-PLAN.md`, delete the root file in a final non-substantive cleanup commit, and confirm it is absent before merge. If substantive implementation resumes after that cleanup, return the PR to Draft and recreate/update the root plan before writing. A durable starter template may live at `templates/PR-PLAN.md`; that template is not the temporary branch plan.
+The root plan is temporary and must not land on the integration branch. Promote durable knowledge before review is complete. Once review is otherwise clean, use a leased Draft writing run to delete the root file in a final non-substantive cleanup commit. Return the PR to Ready, then confirm the plan is absent and required review and checks still pass for the final HEAD before merge. If substantive implementation resumes after cleanup, return the PR to Draft, acquire a lease, and recreate the root plan before other implementation changes. A durable starter template may live at `templates/PR-PLAN.md`; that template is not the temporary branch plan.
 
 Handoffs should normally point the next agent to the issue, PR, root `PR-PLAN.md`, and latest relevant PR comment rather than reproducing the plan in chat.
 
