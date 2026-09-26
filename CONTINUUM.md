@@ -36,7 +36,7 @@ Agents:
 
 A lease is scoped to one implementation branch and one active writing run. Draft/Ready describes the PR lifecycle; it does not by itself identify a writer.
 
-- **Acquiring before a PR exists**: record the intended writer in the issue. That temporary claim authorizes creating the branch, first commit, push, and Draft PR.
+- **Acquiring before a PR exists**: record the intended writer in the issue. That temporary claim authorizes creating the branch, the initial root `PR-PLAN.md` commit, push, and Draft PR.
 - **Draft PR**: implementation is still open. A Draft PR may normally rest with no active lease between writing runs.
 - **Acquiring a Draft PR**: verify the current HEAD and that no other writer holds the lease, then durably record the writer (for example, `Writer: T3 / Codex`) before modifying the branch.
 - **Releasing**: before yielding control or ending normally, commit and push the coherent checkpoint, record any needed handoff, durably release the lease, and stop writing. Incomplete work remains Draft + no active lease.
@@ -93,7 +93,7 @@ Do not copy mutable workflow state into the plan. In particular, current writer,
 
 Keep the plan synchronized when the implementation approach materially changes. Durable scope or acceptance changes belong on the issue first; durable repository knowledge belongs in specs, docs, tests, or code as appropriate.
 
-The root plan is temporary and must not land on the integration branch. After review is otherwise clean, promote any durable knowledge out of `PR-PLAN.md`, delete the root file in a final non-substantive cleanup commit, and confirm it is absent before merge. A durable starter template may live at `templates/PR-PLAN.md`; that template is not the temporary branch plan.
+The root plan is temporary and must not land on the integration branch. After review is otherwise clean, promote any durable knowledge out of `PR-PLAN.md`, delete the root file in a final non-substantive cleanup commit, and confirm it is absent before merge. If substantive implementation resumes after that cleanup, return the PR to Draft and recreate/update the root plan before writing. A durable starter template may live at `templates/PR-PLAN.md`; that template is not the temporary branch plan.
 
 Handoffs should normally point the next agent to the issue, PR, root `PR-PLAN.md`, and latest relevant PR comment rather than reproducing the plan in chat.
 
