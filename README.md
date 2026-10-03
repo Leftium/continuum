@@ -2,7 +2,7 @@
 
 Continuum is a GitHub-native workflow for coordinating coding agents and humans across long-running software projects.
 
-The protocol is currently a **draft**. The current target is version **0.3.0**.
+The protocol is a **draft** targeting version **0.3.0**.
 
 ## Core model
 

@@ -52,8 +52,12 @@ case "$cmd" in
     if [[ "${1:-}" == "get-url" ]]; then
       shift
       [[ "${1:-}" == "--push" ]] && shift
+      [[ "${1:-}" == "--all" ]] && shift
       [[ "${1:-}" == "origin" ]] || exit 2
       printf '%s\n' "${FAKE_REMOTE_URL:-https://github.com/Leftium/continuum.git}"
+      if [[ -f "$FAKE_STATE/multiple-push-urls" ]]; then
+        printf 'https://github.com/other/repository.git\n'
+      fi
     else
       printf 'origin\n'
     fi
@@ -81,6 +85,14 @@ case "$cmd" in
     cp "$FAKE_STATE/head" "$FAKE_STATE/remote"
     ;;
   ls-remote)
+    printf '%s\n' "$*" > "$FAKE_STATE/ls-remote-args"
+    [[ -f "$FAKE_STATE/verify-fail" ]] && exit 1
+    if [[ "${1:-}" == "origin" ]]; then
+      # Fetching through the remote name reads the other repository.
+      printf 'initial\trefs/heads/feature\n'
+      exit 0
+    fi
+    [[ "${1:-}" == "${FAKE_REMOTE_URL:-https://github.com/Leftium/continuum.git}" ]] || exit 2
     printf '%s\trefs/heads/%s\n' "$(cat "$FAKE_STATE/remote")" "${FAKE_HEAD_REF:-feature}"
     ;;
   *)
@@ -103,6 +115,7 @@ if [[ "$*" == *"state,isDraft,headRefName,headRefOid,headRepository"* ]]; then
 fi
 
 if [[ "$*" == *"headRefOid"* ]]; then
+  [[ -f "$FAKE_STATE/metadata-fail" ]] && exit 1
   count=0
   [[ -s "$FAKE_STATE/gh-polls" ]] && count=$(cat "$FAKE_STATE/gh-polls")
   count=$((count + 1))
@@ -140,9 +153,43 @@ export FAKE_STALE_POLLS
 run_finalizer > "$CASE_ROOT/stdout" 2> "$CASE_ROOT/stderr" || fail "explicit-push success case returned nonzero"
 grep -Fq "Continuum PR plan removed and pushed" "$CASE_ROOT/stdout" || fail "success message missing"
 grep -Fxq 'origin HEAD:refs/heads/feature' "$FAKE_STATE/push-args" || fail "finalizer did not use explicit branch refspec"
+grep -Fxq "$FAKE_REMOTE_URL refs/heads/feature" "$FAKE_STATE/ls-remote-args" || fail "verification did not query the push URL"
 [[ "$(cat "$FAKE_STATE/remote")" == "cleanup" ]] || fail "remote ref was not updated"
 [[ "$(cat "$FAKE_STATE/gh-polls")" == "3" ]] || fail "bounded stale-head polling did not converge as expected"
 unset FAKE_REMOTE_URL
+unset FAKE_STALE_POLLS
+
+setup_case multiple-push-urls
+touch "$FAKE_STATE/multiple-push-urls"
+if run_finalizer > "$CASE_ROOT/stdout" 2> "$CASE_ROOT/stderr"; then
+  fail "multiple push destinations unexpectedly succeeded"
+fi
+grep -Fq "single push URL" "$CASE_ROOT/stderr" || fail "ambiguous-destination diagnostic missing"
+[[ -f "$FAKE_WORK/PR-PLAN.md" && ! -f "$FAKE_STATE/push-args" ]] || fail "ambiguous destination changed the plan or pushed"
+
+setup_case stale-metadata
+FAKE_STALE_POLLS=10
+export FAKE_STALE_POLLS
+if run_finalizer > "$CASE_ROOT/stdout" 2> "$CASE_ROOT/stderr"; then
+  fail "stale metadata unexpectedly converged"
+fi
+grep -Fq "after 5 checks; the push succeeded" "$CASE_ROOT/stderr" || fail "propagation diagnostic missing"
+[[ "$(cat "$FAKE_STATE/gh-polls")" == "5" ]] || fail "metadata polling was not bounded"
+unset FAKE_STALE_POLLS
+
+setup_case verification-failure
+touch "$FAKE_STATE/verify-fail"
+if run_finalizer > "$CASE_ROOT/stdout" 2> "$CASE_ROOT/stderr"; then
+  fail "remote verification failure unexpectedly succeeded"
+fi
+grep -Fq "push succeeded, but remote branch verification failed" "$CASE_ROOT/stderr" || fail "verification failure diagnostic missing"
+
+setup_case metadata-failure
+touch "$FAKE_STATE/metadata-fail"
+if run_finalizer > "$CASE_ROOT/stdout" 2> "$CASE_ROOT/stderr"; then
+  fail "metadata read failure unexpectedly succeeded"
+fi
+grep -Fq "metadata could not be read; the push succeeded" "$CASE_ROOT/stderr" || fail "metadata read diagnostic missing"
 
 setup_case push-failure
 touch "$FAKE_STATE/push-fail"

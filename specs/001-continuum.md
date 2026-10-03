@@ -42,7 +42,7 @@ An issue may represent implementation, investigation, modernization, comparison,
 
 ### Agent run
 
-A run is one agent taking responsibility for advancing an issue. Runs are conceptual; Continuum 0.2.0 does not require a dedicated GitHub object for them.
+A run is one agent taking responsibility for advancing an issue. Runs are conceptual; Continuum 0.3.0 does not require a dedicated GitHub object for them.
 
 A run must leave a durable handoff in the issue or linked PR when responsibility changes. A run that writes to an implementation branch must acquire its write lease before writing and release it before yielding control or ending normally, except when the run is explicitly suspended while waiting for required human approval.
 
@@ -69,7 +69,7 @@ Keep responsibilities explicit:
 
 The plan remains present through implementation and review. Promote durable knowledge before review is complete; repository changes made for that promotion require review.
 
-The caller must confirm review is otherwise clean; the helper cannot determine that from GitHub state. Then run `bash scripts/continuum-finalize-pr.sh` when the installed helper is available. It refuses tracked dirty work or a local HEAD that differs from the PR, verifies that the current branch belongs to an open Ready PR, and creates a cleanup-only commit deleting root `PR-PLAN.md`. It pushes explicitly to the PR head branch on a matching Git remote rather than relying on upstream tracking, verifies the remote branch ref reached the cleanup commit, then polls GitHub PR metadata for a bounded interval to tolerate propagation lag. If the helper is unavailable, the equivalent standing-authorized fallback is to `git rm PR-PLAN.md`, commit only that deletion as `chore: remove temporary PR plan`, and push normally.
+Confirm review is otherwise clean before running `bash scripts/continuum-finalize-pr.sh`; the helper cannot determine that from GitHub state. It requires a clean tracked worktree, local HEAD matching the PR, and a current branch belonging to an open Ready PR. It also requires a remote with a single push URL matching the PR head repository. The helper creates a cleanup-only commit deleting root `PR-PLAN.md`, pushes explicitly to the PR head branch, and verifies the branch at the push destination. It then polls GitHub PR metadata for a bounded interval to tolerate propagation lag. If the helper is unavailable, the pre-authorized fallback is `git rm PR-PLAN.md`, commit only that deletion as `chore: remove temporary PR plan`, and push normally.
 
 This narrow finalization step may run while the PR remains Ready and does not require a normal write lease or substantive re-review. Repository rules may still mechanically require checks or approval on the new HEAD. The temporary root plan must never land on the integration branch. If substantive implementation resumes after cleanup, return the PR to Draft, acquire a lease, and recreate the root plan before other implementation changes.
 
@@ -77,9 +77,9 @@ A repository may ship a durable starter at `templates/PR-PLAN.md`. That template
 
 ### PR execution defaults
 
-Unless project policy explicitly narrows this authority, acquiring a Continuum PR lease carries standing human authorization for routine, in-scope, non-destructive repository actions needed to execute the issue and `PR-PLAN.md`. Where the agent harness recognizes repository policy as approval, the writer should not stop for separate approval for ordinary repository inspection and edits, formatter/lint/test/build commands, package-manager operations required by the plan, normal branch switching, commits, or non-force pushes to the PR branch. After acquiring the lease, the writer should carry the planned implementation through all checkpoints without asking whether to continue.
+Acquiring a Continuum PR lease carries standing human authorization for routine, in-scope, non-destructive repository work needed to execute the issue and `PR-PLAN.md`, unless project policy narrows that authority. Where the harness accepts repository policy as approval, the writer should proceed without separate approval for inspection, edits, formatting, lint, tests, builds, plan-required package-manager operations, normal branch switching, commits, and non-force pushes to the PR branch. The writer should continue through all planned checkpoints without asking whether to proceed.
 
-A checkpoint is a durable savepoint, not a yield point. At each planned checkpoint, perform the appropriate focused verification, commit and non-force-push a coherent savepoint, and continue to the next checkpoint while the same writing run and lease remain active. Checkpoint comments are only required when they carry durable evidence or context. A writer yields only for a genuine scope/product decision, an operation outside standing authorization, an external blocker, or when the harness/run must actually end.
+A checkpoint is a durable savepoint. At each planned checkpoint, run the appropriate focused verification, commit and non-force-push the coherent state, then continue under the same lease. Checkpoint comments are required only when they carry durable evidence or context. A writer yields only for a scope or product decision, an operation outside standing authorization, an external blocker, or when the run must end.
 
 This standing authorization does not permit force-pushes or history rewrites, merging into the integration/default branch, destructive reset/clean operations, discarding unrelated local changes, deleting unrelated data, publishing/releases/deployments, production or external-infrastructure changes, credential/secret changes, paid or irreversible external actions, or scope/decision changes that otherwise require human input. Higher-precedence system or harness restrictions still apply.
 
@@ -135,7 +135,7 @@ During an active writing run, each planned checkpoint is a savepoint:
 4. record a checkpoint comment only when durable evidence or context is useful;
 5. continue to the next planned checkpoint without releasing the lease or asking whether to continue.
 
-Before the run actually ends or yields control:
+Before the run ends or yields control:
 
 1. ensure the current state is coherent, committed, and pushed;
 2. record a durable handoff when context is needed by the next run;
@@ -143,14 +143,14 @@ Before the run actually ends or yields control:
 
 The PR remains Draft if implementation is incomplete. The same writer may reacquire it in a later run, or a different writer may acquire it after verifying the checkpoint. A transfer is therefore logically release + acquire, even if future tooling performs both operations atomically.
 
-#### Approval pause
+#### Approval suspension
 
 If a writer must obtain required human approval before it can commit, push, or perform another operation needed to create the durable checkpoint, it cannot satisfy the normal release sequence yet. In that case:
 
 1. durably record that the lease is suspended for approval and identify the blocked operation;
 2. retain the lease while yielding to the human;
 3. do not make unrelated branch writes while suspended;
-4. after approval, resume the same writing run, perform the approved operation, create the durable checkpoint, and release normally.
+4. after approval, resume the same writing run, perform the approved operation, create the durable checkpoint, and continue through the plan. Release the lease when the run ends or yields again.
 
 A suspended lease is still held by its recorded writer, so another writer must not acquire the branch. Approval itself does not transfer ownership.
 
@@ -334,7 +334,7 @@ Branch listings are secondary diagnostics, not the canonical project overview.
 
 A repository participates in Continuum when it contains a root `CONTINUUM.md`.
 
-`AGENTS.md` should contain a small pointer directing agents to read it, plus a compact note that Continuum's standing authorization covers routine in-scope, non-destructive PR work where the harness permits repository policy to grant approval. Installers must preserve unrelated `AGENTS.md` content and should own only a clearly delimited managed section.
+`AGENTS.md` should direct agents to read `CONTINUUM.md` and briefly explain standing authorization where the harness accepts repository policy as approval. The note should tell a leased Draft-PR writer to run required formatting, tests, checks, builds, and plan-required package-manager commands; commit and non-force-push coherent checkpoints; and continue through the plan. It should preserve project-specific and higher-precedence restrictions and require approval for operations outside that authority or decisions that materially change scope. Installers must preserve unrelated `AGENTS.md` content and should own only a clearly delimited managed section.
 
 If a repository has multiple long-lived accepted integration bases from which Continuum work may begin, each base should carry compatible Continuum discovery files or project policy must provide an equally reliable discovery path. A fresh agent starting from any accepted base should not silently miss the protocol.
 
@@ -381,7 +381,7 @@ During the draft phase:
 
 Version 0.2.0 adds the required temporary branch-local `PR-PLAN.md` lifecycle for implementation PRs.
 
-Version 0.3.0 makes continuous checkpoint execution the default for an active leased writing run, strengthens standing authorization language, and hardens cleanup finalization against missing upstream tracking and transient GitHub PR-head propagation lag.
+Version 0.3.0 makes leased writers continue through planned checkpoints by default, clarifies standing authorization, and makes cleanup finalization work without upstream tracking and tolerate stale GitHub PR metadata.
 
 After `1.0.0`:
 - patch = behavior-preserving clarification or fix;
@@ -406,7 +406,7 @@ The draft protocol should remain coherent under at least these scenarios:
 10. A Ready PR has no active write lease and is write-stopped for implementation; only cleanup-only PR-plan finalization may change its branch before merge.
 11. Review-requested fixes do not begin until the PR returns to Draft and a writer acquires its run-scoped lease.
 12. A writer blocked on required approval before commit or push may yield with a durably recorded suspended lease; no other writer may acquire the branch during that pause.
-13. After approval, the suspended writer can resume, create the durable checkpoint, and release normally; if the human abandons the run instead, lease recovery explicitly accepts that unpushed work may be discarded.
+13. After approval, the suspended writer can resume, create the durable checkpoint, and continue through the plan, releasing the lease when the run ends or yields again. If the human abandons the run instead, lease recovery explicitly accepts that unpushed work may be discarded.
 14. An evidently stale lease left by an abnormally terminated run can be durably recovered without treating the writer as the permanent owner.
 15. An issue blocked by native dependency relationships is not treated as ready merely because an agent is available.
 16. A merged PR causes the issue acceptance criteria and downstream dependencies to be reconsidered.

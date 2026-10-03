@@ -21,7 +21,7 @@ Also make standing authorization operational enough that agents stop asking for 
 - Strengthen self-checks and add compact shell regression coverage for the finalizer if practical.
 - Do not implement installer/update tooling or propagate 0.3.0 into other repositories in this PR.
 
-## Checkpoint A — execution semantics
+## Checkpoint A - execution semantics
 
 Update the protocol, self-hosted/template `CONTINUUM.md`, managed `AGENTS.md`, PR-plan template, and README so a leased run:
 
@@ -35,21 +35,21 @@ Keep existing safety exclusions and higher-precedence restrictions.
 
 Verify root/template synchronization and protocol-version consistency.
 
-## Checkpoint B — finalizer hardening
+## Checkpoint B - finalizer hardening
 
 Refactor `scripts/continuum-finalize-pr.sh` and its template so finalization:
 
 - verifies current branch and open Ready PR state;
 - obtains the PR head repository/branch;
-- identifies a usable Git remote for the PR head repository;
+- identifies a Git remote with a single push URL matching the PR head repository;
 - pushes with an explicit refspec rather than relying on upstream configuration;
-- verifies the remote branch ref reached local HEAD;
+- verifies the branch ref at the push destination reached local HEAD;
 - polls `gh pr view --json headRefOid` for a bounded interval;
 - reports a clear propagation-lag error only after the remote ref is already correct.
 
 Preserve cleanup-only behavior: tracked-clean worktree, exact current PR HEAD before deletion, only root `PR-PLAN.md` staged, one cleanup commit.
 
-## Checkpoint C — regression checks
+## Checkpoint C - regression checks
 
 Strengthen `scripts/check-continuum.sh`.
 
@@ -60,11 +60,14 @@ Prefer a compact fake-`git`/`gh` shell harness that exercises the finalizer with
 - stale PR head for several polls then convergence;
 - genuine push failure;
 - mismatched PR head/branch;
-- dirty tracked worktree.
+- dirty tracked worktree;
+- distinct fetch and push repositories;
+- rejection of multiple push URLs before deleting the plan;
+- bounded polling exhaustion and post-push verification/API failures.
 
 If a fake-command harness becomes disproportionately complex, keep static/syntax checks explicit and document the remaining integration boundary rather than building a framework.
 
-## Checkpoint D — final verification and handoff
+## Checkpoint D - final verification and handoff
 
 Run the repository self-check and any added focused finalizer tests. Inspect the complete diff for template drift and accidental weakening of safety exclusions.
 

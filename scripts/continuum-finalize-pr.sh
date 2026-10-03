@@ -68,8 +68,8 @@ github_repo_from_remote_url() {
   local url=$1
   local slug
 
-  url=${url%.git}
   url=${url%/}
+  url=${url%.git}
 
   case "$url" in
     git@github.com:*) slug=${url#git@github.com:} ;;
@@ -83,19 +83,23 @@ github_repo_from_remote_url() {
 }
 
 head_remote=
+head_remote_url=
 while IFS= read -r remote; do
-  remote_url=$(git remote get-url --push "$remote" 2>/dev/null || git remote get-url "$remote" 2>/dev/null || true)
+  remote_url=$(git remote get-url --push --all "$remote" 2>/dev/null || true)
   [[ -n "$remote_url" ]] || continue
+  # A named remote pushes to every push URL; reject ambiguous destinations.
+  [[ "$remote_url" != *$'\n'* ]] || continue
   remote_repo=$(github_repo_from_remote_url "$remote_url" 2>/dev/null || true)
   remote_repo_key=$(printf '%s' "$remote_repo" | tr '[:upper:]' '[:lower:]')
   if [[ -n "$remote_repo" && "$remote_repo_key" == "$head_repo_key" ]]; then
     head_remote=$remote
+    head_remote_url=$remote_url
     break
   fi
 done < <(git remote)
 
 if [[ -z "$head_remote" ]]; then
-  echo "no Git remote matches PR head repository '$head_repo'" >&2
+  echo "no Git remote has a single push URL matching PR head repository '$head_repo'" >&2
   exit 1
 fi
 
@@ -117,7 +121,11 @@ if ! git push "$head_remote" "HEAD:refs/heads/$head_ref"; then
   exit 1
 fi
 
-remote_oid=$(git ls-remote "$head_remote" "refs/heads/$head_ref" | awk 'NR == 1 { print $1 }')
+# Query the push URL: the remote's fetch URL may point to a different repository.
+if ! remote_oid=$(git ls-remote "$head_remote_url" "refs/heads/$head_ref" | awk 'NR == 1 { print $1 }'); then
+  echo "cleanup push succeeded, but remote branch verification failed for '$head_ref'" >&2
+  exit 1
+fi
 if [[ "$remote_oid" != "$local_oid" ]]; then
   echo "push returned success, but remote branch '$head_ref' is '$remote_oid' instead of '$local_oid'" >&2
   exit 1
@@ -125,7 +133,10 @@ fi
 
 observed_oid=
 for ((attempt = 1; attempt <= poll_attempts; attempt++)); do
-  observed_oid=$(gh pr view --json headRefOid --jq .headRefOid)
+  if ! observed_oid=$(gh pr view --json headRefOid --jq .headRefOid); then
+    echo "remote branch '$head_ref' is at '$local_oid', but GitHub PR metadata could not be read; the push succeeded" >&2
+    exit 1
+  fi
   if [[ "$observed_oid" == "$local_oid" ]]; then
     echo "Continuum PR plan removed and pushed from $branch"
     exit 0
