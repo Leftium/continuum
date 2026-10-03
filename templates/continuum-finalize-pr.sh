@@ -91,7 +91,21 @@ while IFS= read -r remote; do
   [[ "$remote_url" != *$'\n'* ]] || continue
   remote_repo=$(github_repo_from_remote_url "$remote_url" 2>/dev/null || true)
   remote_repo_key=$(printf '%s' "$remote_repo" | tr '[:upper:]' '[:lower:]')
-  if [[ -n "$remote_repo" && "$remote_repo_key" == "$head_repo_key" ]]; then
+  remote_matches_head=false
+  if [[ -n "$remote_repo" ]]; then
+    if [[ "$remote_repo_key" == "$head_repo_key" ]]; then
+      remote_matches_head=true
+    else
+      # GitHub keeps old repository URLs working after a rename. Resolve the
+      # configured slug canonically before rejecting an otherwise valid remote.
+      canonical_repo=$(gh api "repos/$remote_repo" --jq .full_name 2>/dev/null || true)
+      canonical_repo_key=$(printf '%s' "$canonical_repo" | tr '[:upper:]' '[:lower:]')
+      if [[ -n "$canonical_repo" && "$canonical_repo_key" == "$head_repo_key" ]]; then
+        remote_matches_head=true
+      fi
+    fi
+  fi
+  if [[ "$remote_matches_head" == "true" ]]; then
     head_remote=$remote
     head_remote_url=$remote_url
     break

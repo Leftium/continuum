@@ -107,6 +107,14 @@ EOF
 #!/usr/bin/env bash
 set -euo pipefail
 
+if [[ "${1:-}" == "api" ]]; then
+  repo_path=${2:-}
+  [[ "$repo_path" == repos/* ]] || exit 2
+  remote_repo=${repo_path#repos/}
+  printf '%s\n' "${FAKE_CANONICAL_REPO:-$remote_repo}"
+  exit 0
+fi
+
 [[ "${1:-}" == "pr" && "${2:-}" == "view" ]] || exit 2
 
 if [[ "$*" == *"state,isDraft,headRefName,headRefOid,headRepository"* ]]; then
@@ -139,6 +147,7 @@ run_finalizer() {
   FAKE_STATE="$FAKE_STATE" \
   FAKE_HEAD_REF="${FAKE_HEAD_REF:-feature}" \
   FAKE_HEAD_REPO="${FAKE_HEAD_REPO:-Leftium/continuum}" \
+  FAKE_CANONICAL_REPO="${FAKE_CANONICAL_REPO:-}" \
   FAKE_STALE_POLLS="${FAKE_STALE_POLLS:-0}" \
   CONTINUUM_FINALIZER_POLL_ATTEMPTS=5 \
   CONTINUUM_FINALIZER_POLL_SECONDS=0 \
@@ -158,6 +167,34 @@ grep -Fxq "$FAKE_REMOTE_URL refs/heads/feature" "$FAKE_STATE/ls-remote-args" || 
 [[ "$(cat "$FAKE_STATE/gh-polls")" == "3" ]] || fail "bounded stale-head polling did not converge as expected"
 unset FAKE_REMOTE_URL
 unset FAKE_STALE_POLLS
+
+setup_case renamed-repository
+FAKE_REMOTE_URL=https://github.com/Leftium/news.git
+FAKE_HEAD_REPO=Leftium/hn
+FAKE_CANONICAL_REPO=Leftium/hn
+export FAKE_REMOTE_URL
+export FAKE_HEAD_REPO
+export FAKE_CANONICAL_REPO
+run_finalizer > "$CASE_ROOT/stdout" 2> "$CASE_ROOT/stderr" || fail "renamed repository remote unexpectedly failed"
+grep -Fxq 'origin HEAD:refs/heads/feature' "$FAKE_STATE/push-args" || fail "renamed repository case did not push explicitly"
+grep -Fxq "$FAKE_REMOTE_URL refs/heads/feature" "$FAKE_STATE/ls-remote-args" || fail "renamed repository verification did not use the configured push URL"
+[[ "$(cat "$FAKE_STATE/remote")" == "cleanup" ]] || fail "renamed repository remote was not updated"
+unset FAKE_REMOTE_URL
+unset FAKE_HEAD_REPO
+unset FAKE_CANONICAL_REPO
+
+setup_case mismatched-repository
+FAKE_REMOTE_URL=https://github.com/other/repository.git
+FAKE_HEAD_REPO=Leftium/hn
+export FAKE_REMOTE_URL
+export FAKE_HEAD_REPO
+if run_finalizer > "$CASE_ROOT/stdout" 2> "$CASE_ROOT/stderr"; then
+  fail "genuinely mismatched repository unexpectedly succeeded"
+fi
+grep -Fq "no Git remote has a single push URL matching PR head repository 'Leftium/hn'" "$CASE_ROOT/stderr" || fail "mismatched-repository diagnostic missing"
+[[ -f "$FAKE_WORK/PR-PLAN.md" && ! -f "$FAKE_STATE/push-args" ]] || fail "mismatched repository changed the plan or pushed"
+unset FAKE_REMOTE_URL
+unset FAKE_HEAD_REPO
 
 setup_case multiple-push-urls
 touch "$FAKE_STATE/multiple-push-urls"
