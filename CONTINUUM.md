@@ -10,9 +10,9 @@ This repository uses the Continuum multi-agent workflow.
 ## Start here
 
 Humans:
-- Issues: https://github.com/Leftium/continuum/issues
-- Pull requests: https://github.com/Leftium/continuum/pulls
-- Milestones: https://github.com/Leftium/continuum/milestones
+- Use this repository's GitHub Issues for Continuum work units.
+- Use this repository's GitHub Pull Requests for implementation and review.
+- Use this repository's GitHub Milestones when grouping is useful.
 
 Agents:
 1. Read this file before coordinating or modifying work.
@@ -31,6 +31,8 @@ Agents:
 - Create implementation branches and pull requests only when work actually starts.
 - Every implementation PR carries a temporary root `PR-PLAN.md` on its branch. The file is created before the Draft PR and deleted before merge.
 - Prefer the GitHub connector when available. If a required operation is unavailable, give the human an exact `gh` CLI command.
+- `CONTINUUM.md` is vendor-managed protocol text. Keep installed copies byte-identical to the accepted Continuum reference; do not add repository-specific policy here.
+- Put repository-specific workflow policy in project-owned `AGENTS.md` content outside the managed Continuum markers, or in dedicated project docs/specs referenced there.
 
 ## PR execution defaults
 

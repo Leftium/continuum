@@ -20,13 +20,14 @@ The protocol is a **draft** targeting version **0.3.0**.
 - Multiple independent draft PRs may coexist, each leased or unleased.
 - A **ready pull request** is unleased and write-stopped for implementation. The cleanup-only plan finalizer may still run after review.
 - Live workflow state stays in GitHub. `CONTINUUM.md` defines how agents and humans interpret that state.
+- Installed `CONTINUUM.md` is vendor-managed protocol text copied verbatim from the accepted Continuum reference; repository-specific workflow policy lives in project-owned `AGENTS.md` content outside the managed Continuum markers or in referenced project docs/specs.
 
 ## Repository layout
 
-- `CONTINUUM.md` - Continuum instructions for this repository.
-- `AGENTS.md` - discovery pointer for coding agents.
+- `CONTINUUM.md` - vendor-managed Continuum protocol file; installed copies should match the accepted reference exactly.
+- `AGENTS.md` - managed Continuum discovery block plus any repository-owned policy outside the managed markers.
 - `specs/001-continuum.md` - draft protocol specification.
-- `templates/CONTINUUM.md` - draft template intended for installation into other repositories.
+- `templates/CONTINUUM.md` - installable copy of `CONTINUUM.md`; kept byte-identical by the self-check.
 - `templates/PR-PLAN.md` - compact starter for the temporary per-PR root plan.
 - `scripts/continuum-finalize-pr.sh` - safe final cleanup; run it with `bash scripts/continuum-finalize-pr.sh` after review is otherwise clean to delete only the temporary root plan, commit, and push.
 - `templates/continuum-finalize-pr.sh` - installable copy of that finalizer.
@@ -40,7 +41,7 @@ The planned installer command is:
 le add continuum
 ```
 
-This command is not implemented yet. When implemented, it should install or update `CONTINUUM.md`, make the `PR-PLAN.md` starter and finalizer available, and add a small managed Continuum pointer/standing-authorization note to `AGENTS.md` without overwriting unrelated agent instructions. It must not create a root `PR-PLAN.md` on the integration branch; that temporary file is created only when an implementation PR starts.
+This command is not implemented yet. When implemented, it should install or update `CONTINUUM.md` as an exact copy of the accepted Continuum reference, make the `PR-PLAN.md` starter and finalizer available, and synchronize only the managed Continuum block in `AGENTS.md`. Repository-specific policy and unrelated agent instructions outside the managed markers must be preserved unchanged. The installer must not create a root `PR-PLAN.md` on the integration branch; that temporary file is created only when an implementation PR starts.
 
 If an agent's GitHub connector cannot perform a bootstrap operation, give the human the exact `gh` CLI command.
 
