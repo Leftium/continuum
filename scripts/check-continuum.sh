@@ -35,6 +35,10 @@ grep -Fq 'gh pr view --json state,isDraft,headRefName' "$finalizer"
 grep -Fq 'git push "$head_remote" "HEAD:refs/heads/$head_ref"' "$finalizer"
 grep -Fq 'git ls-remote "$head_remote" "refs/heads/$head_ref"' "$finalizer"
 grep -Fq 'for ((attempt = 1; attempt <= poll_attempts; attempt++))' "$finalizer"
+if grep -Fq ',,}' "$finalizer"; then
+  echo "finalizer uses Bash 4-only lowercase expansion" >&2
+  exit 1
+fi
 if grep -Fxq 'git push' "$finalizer"; then
   echo "finalizer still contains an unqualified plain git push" >&2
   exit 1

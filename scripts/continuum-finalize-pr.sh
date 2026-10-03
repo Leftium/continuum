@@ -86,7 +86,7 @@ while IFS= read -r remote; do
   remote_url=$(git remote get-url --push "$remote" 2>/dev/null || git remote get-url "$remote" 2>/dev/null || true)
   [[ -n "$remote_url" ]] || continue
   remote_repo=$(github_repo_from_remote_url "$remote_url" 2>/dev/null || true)
-  if [[ -n "$remote_repo" && "${remote_repo,,}" == "${head_repo,,}" ]]; then
+  if [[ -n "$remote_repo" && "$remote_repo" == "$head_repo" ]]; then
     head_remote=$remote
     break
   fi
