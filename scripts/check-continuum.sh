@@ -6,6 +6,7 @@ template=templates/CONTINUUM.md
 pr_plan_template=templates/PR-PLAN.md
 finalizer=scripts/continuum-finalize-pr.sh
 finalizer_template=templates/continuum-finalize-pr.sh
+finalizer_test=scripts/test-finalizer.sh
 spec=specs/001-continuum.md
 agents=AGENTS.md
 
@@ -22,6 +23,7 @@ grep -Fq '# PR Plan' "$pr_plan_template"
 grep -Fq '## Goal' "$pr_plan_template"
 grep -Fq '## Scope' "$pr_plan_template"
 grep -Fq '## Verify' "$pr_plan_template"
+grep -Fq 'Checkpoints are durable savepoints' "$pr_plan_template"
 grep -Fq 'delete the root' "$pr_plan_template"
 
 test -f "$finalizer"
@@ -30,7 +32,21 @@ cmp "$finalizer" "$finalizer_template"
 bash -n "$finalizer"
 grep -Fq 'git rm -- "$plan"' "$finalizer"
 grep -Fq 'gh pr view --json state,isDraft,headRefName' "$finalizer"
-grep -Fq 'git push' "$finalizer"
+grep -Fq 'git push "$head_remote" "HEAD:refs/heads/$head_ref"' "$finalizer"
+grep -Fq 'git ls-remote "$head_remote_url" "refs/heads/$head_ref"' "$finalizer"
+grep -Fq 'for ((attempt = 1; attempt <= poll_attempts; attempt++))' "$finalizer"
+if grep -Fq ',,}' "$finalizer"; then
+  echo "finalizer uses Bash 4-only lowercase expansion" >&2
+  exit 1
+fi
+if grep -Fxq 'git push' "$finalizer"; then
+  echo "finalizer still contains an unqualified plain git push" >&2
+  exit 1
+fi
+
+test -f "$finalizer_test"
+bash -n "$finalizer_test"
+bash "$finalizer_test"
 
 grep -Fq '{{issues_url}}' "$template"
 grep -Fq '{{pull_requests_url}}' "$template"
@@ -51,7 +67,8 @@ fi
 
 grep -Fq '<!-- leftium:continuum:start -->' "$agents"
 grep -Fq 'Read `CONTINUUM.md` before coordinating or modifying work.' "$agents"
-grep -Fq 'standing authorization covers routine in-scope, non-destructive repository actions' "$agents"
+grep -Fq 'provide standing authorization to carry the planned implementation through all checkpoints' "$agents"
+grep -Fq 'A checkpoint is a savepoint, not a default handoff.' "$agents"
 grep -Fq '<!-- leftium:continuum:end -->' "$agents"
 
 normalized=$(mktemp)

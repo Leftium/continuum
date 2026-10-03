@@ -1,5 +1,5 @@
 ---
-continuum: 0.2.0
+continuum: 0.3.0
 status: draft
 ---
 
@@ -34,7 +34,9 @@ Agents:
 
 ## PR execution defaults
 
-Unless project policy explicitly narrows this authority, a writer holding a Continuum PR lease has standing human authorization for routine, in-scope, non-destructive repository work needed to execute the issue and `PR-PLAN.md`. Where the agent harness supports repository policy as approval, do not pause for separate approval for ordinary inspection, editing, formatting, tests, builds, package-manager operations required by the plan, normal Git branch switching, commits, or non-force pushes to the PR branch.
+A writer holding a Continuum PR lease has standing human authorization for routine, in-scope, non-destructive repository work needed to execute the issue and `PR-PLAN.md`, unless project policy narrows that authority. Where the harness accepts repository policy as approval, proceed without separate approval for inspection, edits, formatting, tests, builds, plan-required package-manager operations, normal branch switching, commits, and non-force pushes to the PR branch. Continue through all planned checkpoints without asking whether to proceed.
+
+A **checkpoint** is a durable savepoint. At each planned checkpoint, run the appropriate focused verification, commit and non-force-push the coherent state, then continue under the same lease. Add a checkpoint comment when it records useful durable evidence or context. Yield only for a scope or product decision, an operation outside standing authorization, an external blocker, or when the run must end.
 
 This standing authorization does **not** permit force-pushes or history rewrites, merging into the integration/default branch, destructive reset/clean operations, discarding unrelated local changes, deleting unrelated data, publishing/releases/deployments, production or external-infrastructure changes, credential/secret changes, paid or irreversible external actions, or scope/decision changes that otherwise require human input. Higher-precedence system or harness restrictions still apply.
 
@@ -47,8 +49,9 @@ A lease is scoped to one implementation branch and one active writing run. Draft
 - **Acquiring before a PR exists**: record the intended writer in the issue. That temporary claim authorizes creating the branch, the initial root `PR-PLAN.md` commit, push, and Draft PR.
 - **Draft PR**: implementation is still open. A Draft PR may normally rest with no active lease between writing runs.
 - **Acquiring a Draft PR**: verify the current HEAD and that no other writer holds the lease, then durably record the writer (for example, `Writer: T3 / Codex`) before modifying the branch.
-- **Releasing**: before yielding control or ending normally, commit and push the coherent checkpoint, record any needed handoff, durably release the lease, and stop writing. Incomplete work remains Draft + no active lease.
-- **Approval pause**: if required human approval blocks commit, push, or another operation needed to create that checkpoint, durably record the blocked operation and suspend the lease while yielding. The same writer retains ownership; no other writer may acquire the branch. After approval, resume, create the checkpoint, and release normally. If the human abandons the suspended run, lease recovery explicitly accepts that uncommitted or unpushed work may be discarded.
+- **Checkpoint**: a coherent, verified, committed, pushed savepoint within the same active writing run. It does not release the lease or imply a handoff; continue to the next planned checkpoint by default.
+- **Releasing**: before yielding control or ending normally, commit and push the current coherent state, record any needed handoff, durably release the lease, and stop writing. Incomplete work remains Draft + no active lease.
+- **Approval suspension**: if required human approval blocks commit, push, or another operation needed to create that checkpoint, durably record the blocked operation and suspend the lease while yielding. The same writer retains ownership; no other writer may acquire the branch. After approval, resume the same run, create the checkpoint, and continue through the plan. Release the lease when the run ends or yields again. If the human abandons the suspended run, lease recovery explicitly accepts that uncommitted or unpushed work may be discarded.
 - **Transfer**: a new writer acquires the unleased Draft PR at its verified checkpoint. Transfer is logically release + acquire; Ready is not required.
 - **Ready PR**: implementation is write-stopped, has no active lease, and is available for review or handoff. The cleanup-only PR-plan finalizer is the sole branch-write exception.
 - Agents that do not hold a branch's lease may inspect and review it but must not make implementation changes.
@@ -101,11 +104,13 @@ The plan is required, but its size is proportional to the work. A trivial change
 
 Do not copy mutable workflow state into the plan. In particular, current writer, current HEAD, Draft/Ready status, latest test result, and review status belong in GitHub or PR comments.
 
+If the plan names checkpoints, treat them as savepoints within one writing run unless a checkpoint explicitly calls for a human decision or another real stop condition. Do not ask for permission merely to proceed from one planned checkpoint to the next.
+
 Keep the plan synchronized when the implementation approach materially changes. Durable scope or acceptance changes belong on the issue first; durable repository knowledge belongs in specs, docs, tests, or code as appropriate.
 
 The root plan is temporary and must not land on the integration branch. Promote durable knowledge before review is complete.
 
-The caller must confirm review is otherwise clean; the helper cannot determine that from GitHub state. Then run `bash scripts/continuum-finalize-pr.sh` when the installed helper is available. It refuses tracked dirty work or a local HEAD that differs from the PR, verifies that the current branch is an open Ready PR, and creates/pushes a cleanup-only commit deleting root `PR-PLAN.md`. If the helper is unavailable, the equivalent pre-authorized fallback is `git rm PR-PLAN.md`, commit only that deletion as `chore: remove temporary PR plan`, and push normally.
+Confirm review is otherwise clean before running `bash scripts/continuum-finalize-pr.sh`; the helper cannot determine that from GitHub state. It requires a clean tracked worktree, local HEAD matching the PR, and a current branch belonging to an open Ready PR. It also requires a remote with a single push URL matching the PR head repository. The helper creates a cleanup-only commit deleting root `PR-PLAN.md`, pushes explicitly to the PR head branch, and verifies the branch at the push destination. It then polls GitHub PR metadata for a bounded interval to tolerate propagation lag. If the helper is unavailable, the pre-authorized fallback is `git rm PR-PLAN.md`, commit only that deletion as `chore: remove temporary PR plan`, and push normally.
 
 This narrow finalization step is standing-authorized, may run while the PR remains Ready, and does not require a normal write lease or substantive re-review. Repository rules may still mechanically require checks or approval on the new HEAD. If substantive implementation resumes after cleanup, return the PR to Draft, acquire a lease, and recreate the root plan before other implementation changes. A durable starter template may live at `templates/PR-PLAN.md`; that template is not the temporary branch plan.
 

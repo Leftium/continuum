@@ -2,7 +2,7 @@
 
 Continuum is a GitHub-native workflow for coordinating coding agents and humans across long-running software projects.
 
-The protocol is currently a **draft**. The current target is version **0.2.0**.
+The protocol is a **draft** targeting version **0.3.0**.
 
 ## Core model
 
@@ -12,6 +12,7 @@ The protocol is currently a **draft**. The current target is version **0.2.0**.
 - An implementation branch and pull request are created only when work starts.
 - Every implementation branch starts with a temporary root **`PR-PLAN.md`** that carries the implementation contract through coding and review, then is deleted by the standard finalizer before merge.
 - A leased Continuum PR grants standing approval for routine in-scope, non-destructive repository work unless project or higher-precedence policy narrows it.
+- A **checkpoint is a savepoint, not a yield point**: verify, commit, and push each coherent checkpoint, then continue through the plan without asking whether to proceed.
 - Agents prefer the existing project worktree and switch it to the PR branch when that is safe; separate worktrees are a fallback for dirty/conflicting or concurrent work.
 - A **draft pull request** means implementation is still open; it may rest unleased between writing runs.
 - A **write lease** is run-scoped: one writer acquires it before branch writes and releases it before yielding or ending normally.
