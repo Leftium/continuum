@@ -26,6 +26,16 @@ Continuum does not attempt to:
 - encode mutable live project state in `CONTINUUM.md`;
 - require a specific coding agent or model.
 
+## Repository installation contract
+
+Continuum separates vendor-managed protocol files from repository-owned project policy.
+
+Installed copies of `CONTINUUM.md` should remain byte-identical to the accepted Continuum reference. Do not insert repository-specific URLs, branch roles, verification rules, historical notes, or other project policy into that file. The reference repository keeps `templates/CONTINUUM.md` byte-identical to root `CONTINUUM.md` so the same file is exercised by self-hosting and downstream installations.
+
+The managed Continuum block in `AGENTS.md` is also vendor-managed. Repository-specific workflow policy belongs outside the managed markers in project-owned `AGENTS.md` content, or in dedicated project docs/specs referenced from that content. Such policy may narrow generic Continuum defaults. Updating the managed block must preserve all project-owned content outside it.
+
+The durable `templates/PR-PLAN.md` starter and `scripts/continuum-finalize-pr.sh` are likewise installed from the accepted reference rather than rewritten per repository. A repository may add other project files and instructions around these managed surfaces, but should not fork the managed copies merely to encode local policy.
+
 ## Object model
 
 ### GitHub milestone
