@@ -1,5 +1,5 @@
 ---
-continuum: 0.2.0
+continuum: 0.3.0
 status: draft
 ---
 
@@ -34,7 +34,9 @@ Agents:
 
 ## PR execution defaults
 
-Unless project policy explicitly narrows this authority, a writer holding a Continuum PR lease has standing human authorization for routine, in-scope, non-destructive repository work needed to execute the issue and `PR-PLAN.md`. Where the agent harness supports repository policy as approval, do not pause for separate approval for ordinary inspection, editing, formatting, tests, builds, package-manager operations required by the plan, normal Git branch switching, commits, or non-force pushes to the PR branch.
+Unless project policy explicitly narrows this authority, a writer holding a Continuum PR lease has standing human authorization for routine, in-scope, non-destructive repository work needed to execute the issue and `PR-PLAN.md`. Where the agent harness supports repository policy as approval, do not pause for separate approval for ordinary inspection, editing, formatting, tests, builds, package-manager operations required by the plan, normal Git branch switching, commits, or non-force pushes to the PR branch. After acquiring the lease, carry the planned implementation through all checkpoints without asking whether to continue.
+
+A **checkpoint** is a durable savepoint, not a yield point. At each planned checkpoint, perform the appropriate focused verification, commit and non-force-push a coherent savepoint, then continue to the next checkpoint while the same writing run and lease remain active. A checkpoint comment is useful when it records durable evidence or context, but the checkpoint itself does not require a handoff. Yield only for a genuine scope/product decision, an operation outside standing authorization, an external blocker, or when the harness/run must actually end.
 
 This standing authorization does **not** permit force-pushes or history rewrites, merging into the integration/default branch, destructive reset/clean operations, discarding unrelated local changes, deleting unrelated data, publishing/releases/deployments, production or external-infrastructure changes, credential/secret changes, paid or irreversible external actions, or scope/decision changes that otherwise require human input. Higher-precedence system or harness restrictions still apply.
 
@@ -47,8 +49,9 @@ A lease is scoped to one implementation branch and one active writing run. Draft
 - **Acquiring before a PR exists**: record the intended writer in the issue. That temporary claim authorizes creating the branch, the initial root `PR-PLAN.md` commit, push, and Draft PR.
 - **Draft PR**: implementation is still open. A Draft PR may normally rest with no active lease between writing runs.
 - **Acquiring a Draft PR**: verify the current HEAD and that no other writer holds the lease, then durably record the writer (for example, `Writer: T3 / Codex`) before modifying the branch.
-- **Releasing**: before yielding control or ending normally, commit and push the coherent checkpoint, record any needed handoff, durably release the lease, and stop writing. Incomplete work remains Draft + no active lease.
-- **Approval pause**: if required human approval blocks commit, push, or another operation needed to create that checkpoint, durably record the blocked operation and suspend the lease while yielding. The same writer retains ownership; no other writer may acquire the branch. After approval, resume, create the checkpoint, and release normally. If the human abandons the suspended run, lease recovery explicitly accepts that uncommitted or unpushed work may be discarded.
+- **Checkpoint**: a coherent, verified, committed, pushed savepoint within the same active writing run. It does not release the lease or imply a handoff; continue to the next planned checkpoint by default.
+- **Releasing**: before actually yielding control or ending normally, commit and push the current coherent state, record any needed handoff, durably release the lease, and stop writing. Incomplete work remains Draft + no active lease.
+- **Approval suspension**: if required human approval blocks commit, push, or another operation needed to create that checkpoint, durably record the blocked operation and suspend the lease while yielding. The same writer retains ownership; no other writer may acquire the branch. After approval, resume, create the checkpoint, and release normally. If the human abandons the suspended run, lease recovery explicitly accepts that uncommitted or unpushed work may be discarded.
 - **Transfer**: a new writer acquires the unleased Draft PR at its verified checkpoint. Transfer is logically release + acquire; Ready is not required.
 - **Ready PR**: implementation is write-stopped, has no active lease, and is available for review or handoff. The cleanup-only PR-plan finalizer is the sole branch-write exception.
 - Agents that do not hold a branch's lease may inspect and review it but must not make implementation changes.
@@ -100,6 +103,8 @@ Keep the responsibilities separate:
 The plan is required, but its size is proportional to the work. A trivial change may need only Goal, Scope, and Verify. Do not add empty boilerplate merely to make the file longer.
 
 Do not copy mutable workflow state into the plan. In particular, current writer, current HEAD, Draft/Ready status, latest test result, and review status belong in GitHub or PR comments.
+
+If the plan names checkpoints, treat them as savepoints within one writing run unless a checkpoint explicitly calls for a human decision or another real stop condition. Do not ask for permission merely to proceed from one planned checkpoint to the next.
 
 Keep the plan synchronized when the implementation approach materially changes. Durable scope or acceptance changes belong on the issue first; durable repository knowledge belongs in specs, docs, tests, or code as appropriate.
 

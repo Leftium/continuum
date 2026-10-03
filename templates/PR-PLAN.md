@@ -7,6 +7,11 @@ Keep this plan proportional to the PR. Goal / Scope / Verify are enough for a
 small change. Add checkpoints, evidence, risks, or implementation decisions only
 when they help another agent implement or review the branch.
 
+Checkpoints are durable savepoints, not default stopping points. During one leased
+writing run, verify, commit, and non-force-push each coherent checkpoint, then
+continue to the next without asking whether to proceed unless a real decision,
+unauthorized operation, external blocker, or ending harness/run requires a yield.
+
 Do not record mutable workflow state here: current writer, current HEAD,
 Draft/Ready status, latest test result, and review status belong in GitHub or PR
 comments.

@@ -1,4 +1,4 @@
-# Continuum protocol 0.2.0-draft
+# Continuum protocol 0.3.0-draft
 
 ## Status
 
@@ -77,7 +77,9 @@ A repository may ship a durable starter at `templates/PR-PLAN.md`. That template
 
 ### PR execution defaults
 
-Unless project policy explicitly narrows this authority, acquiring a Continuum PR lease carries standing human authorization for routine, in-scope, non-destructive repository actions needed to execute the issue and `PR-PLAN.md`. Where the agent harness recognizes repository policy as approval, the writer should not stop for separate approval for ordinary repository inspection and edits, formatter/lint/test/build commands, package-manager operations required by the plan, normal branch switching, commits, or non-force pushes to the PR branch.
+Unless project policy explicitly narrows this authority, acquiring a Continuum PR lease carries standing human authorization for routine, in-scope, non-destructive repository actions needed to execute the issue and `PR-PLAN.md`. Where the agent harness recognizes repository policy as approval, the writer should not stop for separate approval for ordinary repository inspection and edits, formatter/lint/test/build commands, package-manager operations required by the plan, normal branch switching, commits, or non-force pushes to the PR branch. After acquiring the lease, the writer should carry the planned implementation through all checkpoints without asking whether to continue.
+
+A checkpoint is a durable savepoint, not a yield point. At each planned checkpoint, perform the appropriate focused verification, commit and non-force-push a coherent savepoint, and continue to the next checkpoint while the same writing run and lease remain active. Checkpoint comments are only required when they carry durable evidence or context. A writer yields only for a genuine scope/product decision, an operation outside standing authorization, an external blocker, or when the harness/run must actually end.
 
 This standing authorization does not permit force-pushes or history rewrites, merging into the integration/default branch, destructive reset/clean operations, discarding unrelated local changes, deleting unrelated data, publishing/releases/deployments, production or external-infrastructure changes, credential/secret changes, paid or irreversible external actions, or scope/decision changes that otherwise require human input. Higher-precedence system or harness restrictions still apply.
 
@@ -125,12 +127,19 @@ To begin a writing run:
 3. durably record the writer and acquire the lease;
 4. only then modify the implementation branch.
 
-Before a normal run ends or yields control:
+During an active writing run, each planned checkpoint is a savepoint:
 
-1. stop at a coherent checkpoint;
-2. commit and push all intended checkpoint changes;
-3. record a durable handoff when context is needed by the next run;
-4. durably release the lease.
+1. reach a coherent state;
+2. run the checkpoint's appropriate verification;
+3. commit and non-force-push the checkpoint;
+4. record a checkpoint comment only when durable evidence or context is useful;
+5. continue to the next planned checkpoint without releasing the lease or asking whether to continue.
+
+Before the run actually ends or yields control:
+
+1. ensure the current state is coherent, committed, and pushed;
+2. record a durable handoff when context is needed by the next run;
+3. durably release the lease.
 
 The PR remains Draft if implementation is incomplete. The same writer may reacquire it in a later run, or a different writer may acquire it after verifying the checkpoint. A transfer is therefore logically release + acquire, even if future tooling performs both operations atomically.
 
@@ -163,7 +172,7 @@ When review requires fixes:
 
 Other PR-scoped leases are unaffected.
 
-This convention is intentionally soft in 0.2.0. A future version may add an atomic ref-backed or API-backed lease while retaining Draft and Ready as the human-visible state.
+This convention remains intentionally soft in 0.3.0. A future version may add an atomic ref-backed or API-backed lease while retaining Draft and Ready as the human-visible state.
 
 ## State model
 
@@ -248,7 +257,9 @@ draft implementation PR, no lease
   -> implementation is incomplete and available for a writing run
 
 draft implementation PR, active lease
-  -> recorded writer may write until that run reaches a checkpoint
+  -> recorded writer executes planned checkpoints continuously
+  -> each checkpoint verifies / commits / pushes a durable savepoint
+  -> checkpoint does not release lease or imply a handoff
 
 approval required before checkpoint can be made durable
   -> record suspended lease and blocked operation
@@ -370,6 +381,8 @@ During the draft phase:
 
 Version 0.2.0 adds the required temporary branch-local `PR-PLAN.md` lifecycle for implementation PRs.
 
+Version 0.3.0 makes continuous checkpoint execution the default for an active leased writing run, strengthens standing authorization language, and hardens cleanup finalization against missing upstream tracking and transient GitHub PR-head propagation lag.
+
 After `1.0.0`:
 - patch = behavior-preserving clarification or fix;
 - minor = backward-compatible capability;
@@ -406,9 +419,10 @@ The draft protocol should remain coherent under at least these scenarios:
 23. Review can compare the implementation against the durable issue contract plus the current `PR-PLAN.md`, while mutable Draft/Ready and writer state remain in GitHub.
 24. Durable plan knowledge is reviewed before cleanup. After review is otherwise clean, `bash scripts/continuum-finalize-pr.sh` (or its exact manual fallback) deletes only root `PR-PLAN.md` while the PR remains Ready; this deletion alone does not require substantive re-review, and the integration branch never accumulates stale PR plans.
 25. A leased writer can perform routine in-scope, non-destructive repository work without repeatedly seeking human approval, while destructive, external, merge, history-rewrite, and scope-changing actions remain outside the standing authorization.
-26. An agent with a safe current project worktree switches that worktree to the PR branch instead of creating a new workspace; if local changes make the switch unsafe, the agent preserves them and falls back to a separate worktree without auto-stashing or discarding work.
+26. A leased writer treats planned checkpoints as durable savepoints: it verifies, commits, and pushes each coherent checkpoint, then continues to the next without asking for permission or releasing the lease unless a real stop condition exists.
+27. An agent with a safe current project worktree switches that worktree to the PR branch instead of creating a new workspace; if local changes make the switch unsafe, the agent preserves them and falls back to a separate worktree without auto-stashing or discarding work.
 
-## Open questions for 0.2.0
+## Open questions for 0.3.0
 
 - Exact machine-readable representation for run-scoped lease acquisition, ownership, and release.
 - Whether Continuum should standardize optional agent labels.
