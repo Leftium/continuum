@@ -133,6 +133,8 @@ run_finalizer() {
 }
 
 setup_case success
+FAKE_REMOTE_URL=https://github.com/leftium/continuum.git
+export FAKE_REMOTE_URL
 FAKE_STALE_POLLS=2
 export FAKE_STALE_POLLS
 run_finalizer > "$CASE_ROOT/stdout" 2> "$CASE_ROOT/stderr" || fail "explicit-push success case returned nonzero"
@@ -140,6 +142,7 @@ grep -Fq "Continuum PR plan removed and pushed" "$CASE_ROOT/stdout" || fail "suc
 grep -Fxq 'origin HEAD:refs/heads/feature' "$FAKE_STATE/push-args" || fail "finalizer did not use explicit branch refspec"
 [[ "$(cat "$FAKE_STATE/remote")" == "cleanup" ]] || fail "remote ref was not updated"
 [[ "$(cat "$FAKE_STATE/gh-polls")" == "3" ]] || fail "bounded stale-head polling did not converge as expected"
+unset FAKE_REMOTE_URL
 
 setup_case push-failure
 touch "$FAKE_STATE/push-fail"

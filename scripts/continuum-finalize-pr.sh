@@ -47,6 +47,7 @@ if [[ -z "$head_repo" || "$head_repo" == "null" ]]; then
   echo "could not determine the PR head repository" >&2
   exit 1
 fi
+head_repo_key=$(printf '%s' "$head_repo" | tr '[:upper:]' '[:lower:]')
 
 if [[ "$(git rev-parse HEAD)" != "$head_oid" ]]; then
   echo "local HEAD differs from PR HEAD; refusing to push other commits" >&2
@@ -86,7 +87,8 @@ while IFS= read -r remote; do
   remote_url=$(git remote get-url --push "$remote" 2>/dev/null || git remote get-url "$remote" 2>/dev/null || true)
   [[ -n "$remote_url" ]] || continue
   remote_repo=$(github_repo_from_remote_url "$remote_url" 2>/dev/null || true)
-  if [[ -n "$remote_repo" && "$remote_repo" == "$head_repo" ]]; then
+  remote_repo_key=$(printf '%s' "$remote_repo" | tr '[:upper:]' '[:lower:]')
+  if [[ -n "$remote_repo" && "$remote_repo_key" == "$head_repo_key" ]]; then
     head_remote=$remote
     break
   fi
