@@ -53,6 +53,32 @@ Default stable discovery stops until a supported stable 0.4 release exists.
 Authorized testing can use `--development-source --source-commit <40-character-sha>`;
 this does not satisfy stable publication or migration prerequisites.
 
+Bootstrap applies an existing `continuum` label best-effort. When the label is
+missing and repository permissions allow creation, an interactive terminal offers
+create/skip, then a separate backfill choice after creation. Both prompts default
+to skip. Labels have no authority over contracts, leases, or readiness, and label
+failures never block bootstrap.
+
+For automation, pass `--label create` or `--label skip` and
+`--label-backfill sync` or `--label-backfill skip`. Without these flags, a
+noninteractive invocation skips creation/backfill and reports the available
+options. Creating the label applies it to the current PR; backfill only adds it
+to other open PRs with a parseable canonical 0.4 body section. Choices are saved
+in the recovery journal before label mutations so resume does not infer consent.
+Explicit flags on resume can replace a saved choice before the next label action.
+
+To backfill later, first create the repository label through an explicitly
+authorized operation, then run:
+
+```sh
+python3 /trusted/continuum/scripts/continuum.py label sync --repo upstream/project
+```
+
+Sync never creates labels, removes labels, or guesses 0.3 PRs from titles or
+branches. It rereads each candidate, skips closed/already-labeled PRs, reports
+each confirmed addition, and reports partial failures. A missing label or lookup
+failure leaves the repository unchanged. Repeating sync is safe.
+
 For uncertain PR creation, resume the SAME branch and recorded commit:
 
 ```sh

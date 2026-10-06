@@ -64,6 +64,12 @@ bootstrap instead of repository installation and does not create root protocol
 or plan files. Its target repository needs no labels, settings changes or upstream
 installed machinery.
 
+Bootstrap offers optional `continuum` PR labeling and a separate backfill choice.
+Label creation requires explicit consent; missing permissions or label failures
+do not block bootstrap. See [client instructions](docs/client.md#bootstrap) for
+noninteractive create/skip flags and `label sync`. Canonical PR-body metadata
+remains authoritative.
+
 If an agent's GitHub connector cannot perform a bootstrap operation, give the human the exact `gh` CLI command.
 
 ## Status
