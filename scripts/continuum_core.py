@@ -37,13 +37,11 @@ def render(action, run, sha=None, confirmation=None):
     return f"```continuum\n{line}\n```"
 
 
-def render_recovery(runs, confirmation):
-    runs = sorted(set(runs))
-    require(runs and all(UUID.fullmatch(run) for run in runs), "recovery must name active UUIDv4 run identities")
+def render_recovery(confirmation):
     require(isinstance(confirmation, str) and confirmation.strip(), "recovery needs owner confirmation and work disposition")
     require(not any(ch in confirmation for ch in ("\n", "\r", "|", "`")),
             "recovery confirmation must be one line without record delimiters")
-    return "```continuum\nrecover " + ", ".join(runs) + " | " + confirmation.strip() + "\n```"
+    return "```continuum\nrecover | " + confirmation.strip() + "\n```"
 
 
 def parse_comment(body, author, association, pr_author=""):
@@ -69,16 +67,13 @@ def parse_comment(body, author, association, pr_author=""):
         require(author == pr_author or association in ("OWNER", "MEMBER", "COLLABORATOR"),
                 "untrusted lease author")
         return {"action": "release", "run": run, "sha": sha}
-    match = re.fullmatch(r"recover ([0-9a-f-]+(?:, [0-9a-f-]+)*) \| (.+)", line)
+    match = re.fullmatch(r"recover \| (.+)", line)
     require(match is not None, "unknown or malformed Continuum record")
     require(association == "OWNER", "only a repository OWNER may recover a lease")
-    runs = match.group(1).split(", ")
-    require(all(UUID.fullmatch(run) for run in runs) and len(runs) == len(set(runs)),
-            "invalid recovery run list")
-    confirmation = match.group(2)
+    confirmation = match.group(1)
     require(confirmation.strip() == confirmation and confirmation and "\r" not in confirmation,
             "empty or malformed recovery confirmation")
-    return {"action": "recover", "runs": runs, "confirmation": confirmation}
+    return {"action": "recover", "confirmation": confirmation}
 
 
 @dataclass
@@ -91,7 +86,7 @@ class State:
 def reconstruct(comments, pr_author="", recovery_boundary=False):
     """Replay trusted records in GitHub order; comments stay outside model context."""
     state = State()
-    for index, comment in enumerate(comments):
+    for comment in comments:
         record = parse_comment(comment.get("body") or "", comment.get("author", ""),
                                comment.get("author_association", ""), pr_author)
         if record is None:
@@ -110,9 +105,6 @@ def reconstruct(comments, pr_author="", recovery_boundary=False):
             else:
                 del state.active[record["run"]]
         else:
-            if not (recovery_boundary and index == 0):
-                require(set(record["runs"]) == set(state.active),
-                        "recovery must name the complete active lease set")
             state.active.clear()
             state.conflict = False
     return state

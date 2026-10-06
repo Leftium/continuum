@@ -28,8 +28,8 @@ class LeaseRecordTests(unittest.TestCase):
         self.assertEqual(release, f"```continuum\nrelease {RUN} {'a' * 40}\n```")
         self.assertEqual(len(claim), 59)
         self.assertEqual(len(release), 102)
-        recovery = c.render_recovery([RUN], "Owner confirms the run stopped; unshared work was inventoried")
-        self.assertEqual(len(recovery.encode("utf-8")), 125)
+        recovery = c.render_recovery("Owner confirms all runs stopped; unshared work was inventoried")
+        self.assertIn("recover |", recovery)
 
     def test_unrelated_comments_do_not_change_lease_state(self):
         self.assertEqual(c.reconstruct([record("ordinary discussion")]).active, {})
@@ -56,26 +56,25 @@ class LeaseRecordTests(unittest.TestCase):
         self.assertTrue(state.conflict)
         self.assertEqual(set(state.active), {RUN, OTHER})
 
-    def test_owner_recovery_requires_complete_active_set(self):
+    def test_owner_recovery_is_unconditional_reset(self):
         comments = [record(c.render("claim", RUN), **MEMBER),
                     record(c.render("claim", OTHER), **OWNER),
-                    record(c.render_recovery([RUN, OTHER], "Both runs stopped; unshared work inventoried"), **OWNER)]
+                    record(c.render_recovery("Both runs stopped; unshared work inventoried"), **OWNER)]
         state = c.reconstruct(comments)
         self.assertFalse(state.conflict)
         self.assertEqual(state.active, {})
-        malformed = comments[:-1] + [record(c.render_recovery([RUN], "Only one run stopped"), **OWNER)]
-        with self.assertRaises(c.Invalid):
-            c.reconstruct(malformed)
+        incomplete = comments[:-1] + [record(c.render_recovery("Only one run stopped; owner resets all leases"), **OWNER)]
+        self.assertEqual(c.reconstruct(incomplete).active, {})
 
     def test_recovery_boundary_resets_history_before_compact_reconstruction(self):
-        recovery = record(c.render_recovery([RUN], "Run stopped; work inventoried"), **OWNER)
+        recovery = record(c.render_recovery("All runs stopped; work inventoried"), **OWNER)
         later_claim = record(c.render("claim", OTHER), **MEMBER)
         state = c.reconstruct([recovery, later_claim], recovery_boundary=True)
         self.assertFalse(state.conflict)
         self.assertEqual(set(state.active), {OTHER})
 
     def test_client_stops_pagination_at_latest_recovery(self):
-        recovery = {"body": c.render_recovery([RUN], "Run stopped; work inventoried"),
+        recovery = {"body": c.render_recovery("All runs stopped; work inventoried"),
                     "user": {"login": "leftium"}, "author_association": "OWNER"}
         claim = {"body": c.render("claim", OTHER), "user": {"login": "writer"},
                  "author_association": "MEMBER"}
@@ -86,7 +85,7 @@ class LeaseRecordTests(unittest.TestCase):
         command.assert_called_once()
 
     def test_only_repository_owner_can_recover(self):
-        text = c.render_recovery([RUN], "Run stopped; work inventoried")
+        text = c.render_recovery("All runs stopped; work inventoried")
         with self.assertRaises(c.Invalid):
             c.parse_comment(text, "writer", "MEMBER")
 
@@ -113,7 +112,7 @@ class LeaseRecordTests(unittest.TestCase):
     def test_recovery_needs_single_line_confirmation_and_fresh_identity(self):
         for text in ("", "two\nlines", "carriage\rreturn", "contains | delimiter", "```continuum"):
             with self.subTest(text=text), self.assertRaises(c.Invalid):
-                c.render_recovery([RUN], text)
+                c.render_recovery(text)
         with self.assertRaises(c.Invalid):
             c.render("claim", "not-a-uuid")
 

@@ -72,18 +72,17 @@ claim.
 Any overlapping live claims, malformed protocol record, untrusted author,
 wrong-run release, or uncertain state stops writes. Never resolve a conflict by
 guessing which writer is active. A repository OWNER may recover only after
-confirming every active run stopped and recording the unshared-work inventory
+confirming all writers stopped and recording the unshared-work inventory
 and disposition:
 
 ```sh
 python3 scripts/continuum.py recover --pr https://github.com/owner/project/pull/42 \
-  --runs <run-uuid> [<run-uuid> ...] \
-  --confirmation 'All listed runs stopped; unshared work inventoried and disposition recorded'
+  --confirmation 'All writers stopped; unshared work inventoried and disposition recorded'
 ```
 
-The recovery run list must exactly match the reconstructed active set. After
-recovery, claim with a new UUID. Malformed history or an uncertain run inventory
-requires human reconciliation before writing.
+An OWNER recovery unconditionally clears all earlier leases, including leases
+outside the fetched history. After recovery, claim with a new UUID. Malformed
+records or uncertain writer status require human reconciliation before writing.
 
 `bash scripts/check-continuum.sh` validates the canonical source and offline
 conformance tests. The suite uses local data and does not write to GitHub.

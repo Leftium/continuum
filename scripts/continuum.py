@@ -125,11 +125,11 @@ def release(args):
 def recover(args):
     repository, number, pr, state = state_for(args.pr)
     c.require(pr["state"] == "open", "recovery cannot resume a closed PR")
-    c.require(state.active and set(args.runs) == set(state.active), "recovery must name every active run exactly")
+    c.require(state.active or state.conflict, "recovery is only for an active or conflicting lease history")
     user = command("gh", "api", "user", "--jq", ".login").strip()
     permission = api(f"repos/{repository}/collaborators/{quote(user, safe='')}/permission")
     c.require(permission.get("role_name") == "admin", "recovery requires repository-owner permission")
-    post(repository, number, c.render_recovery(args.runs, args.confirmation))
+    post(repository, number, c.render_recovery(args.confirmation))
     _, _, _, updated = state_for(args.pr)
     c.require(not updated.conflict and not updated.active, "recovery did not clear exactly the accepted leases")
 
@@ -145,7 +145,6 @@ def main():
         item.set_defaults(function=function)
     item = sub.add_parser("recover")
     item.add_argument("--pr", required=True)
-    item.add_argument("--runs", nargs="+", required=True)
     item.add_argument("--confirmation", required=True)
     item.set_defaults(function=recover)
     args = parser.parse_args()

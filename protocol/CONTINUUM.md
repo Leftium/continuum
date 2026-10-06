@@ -75,18 +75,17 @@ Do not create a pointer, setup contract, or cleanup task.
 ## Abandoned lease recovery
 
 Recovery is exceptional. Only a repository OWNER may recover. The owner must
-confirm that every listed run has stopped, inventory unshared work, and record
-the disposition. Recovery names every currently active run; it cannot resolve
-unknown or malformed history.
+confirm that all writers have stopped, inventory unshared work, and record its
+disposition. An OWNER recovery is an unconditional reset of all preceding lease
+history, including history the reader did not fetch. It cannot make malformed
+or untrusted records safe; those still require human reconciliation.
 
 ```continuum
-recover <run-uuid>[, <run-uuid>...] | <owner confirmation, stopped runs, and unshared-work disposition>
+recover | <owner confirmation, stopped writers, and unshared-work disposition>
 ```
 
-The record clears the listed leases only when its run list exactly matches the
-parser's complete active set and the comment author is a repository OWNER.
-Otherwise writes remain stopped for human reconciliation. Start a fresh claim
-after recovery; never reuse a run identity.
+An accepted OWNER record clears all earlier leases without a redundant run list.
+Start a fresh claim after recovery; never reuse a run identity.
 
 ## State reconstruction and cost
 
@@ -110,8 +109,11 @@ duplicate target/head metadata are not part of this protocol.
 Continuum 0.5 is incompatible with 0.4. Existing 0.4 PRs remain governed by the
 exact Continuum 0.4.1 source commit pinned in each PR; do not rewrite their
 contracts or histories. New work uses 0.5 only after its stable release is
-available. This protocol does not authorize merge, publication, release,
-deployment, or changes outside the adopted PR scope. A human authorizes merge.
+available. Merging a reviewed protocol version bump to `main` authorizes the
+release workflow to validate and publish that version at the merge SHA. The
+workflow does nothing when the version is unchanged and refuses mismatched
+existing tags/releases. A human authorizes merge; publication does not authorize
+deployment or changes outside the adopted PR scope.
 
 ## Coordination-surface measurement
 

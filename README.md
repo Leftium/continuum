@@ -13,10 +13,10 @@ Read the canonical [0.5 protocol](protocol/CONTINUUM.md) and [reference client
 instructions](docs/client.md). The client uses Python 3.9+, Git, and
 authenticated `gh`. It does not install files in a target repository.
 
-Continuum 0.5 is an incompatible development version. Do not use it as a stable
-workflow or publish it from this PR. Existing 0.4 PRs keep their exact pinned
-0.4.1 interpreter and history. New work uses 0.5 only after a separate stable
-release makes it available.
+Continuum 0.5 is an incompatible development version until its reviewed version
+bump reaches `main`; the main-branch workflow then publishes that version at the
+merge commit. Existing 0.4 PRs keep their exact pinned 0.4.1 interpreter and
+history. New work uses 0.5 only after that stable release is available.
 
 The public documentation site at
 [leftium.github.io/continuum](https://leftium.github.io/continuum/) retains the
@@ -49,7 +49,7 @@ owner-only abandoned-lease recovery.
 
 Run `bash scripts/check-continuum.sh` for canonical source validation and the
 full offline suite, or `python3 -m unittest discover -s tests` for tests alone.
-Tests do not write to GitHub. Checks do not publish releases, deploy, or merge.
+Tests do not write to GitHub. Pull request checks do not publish releases, deploy, or merge. A main-branch protocol version bump runs the stable release workflow, which validates and publishes that version at the merge commit.
 
 For the documentation build, install `requirements-docs.txt` in an isolated
 environment and run `python -m mkdocs build --strict`, as described in
