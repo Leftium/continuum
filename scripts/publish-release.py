@@ -22,6 +22,21 @@ def run(*args, check=True):
     return result
 
 
+def tag_commit(tag):
+    """Resolve lightweight or annotated refs all the way to their commit."""
+    oid = run("gh", "api", f"repos/Leftium/continuum/git/ref/tags/{tag}", "--jq", ".object.sha").stdout.strip()
+    for _ in range(8):
+        obj = run("gh", "api", f"repos/Leftium/continuum/git/tags/{oid}", "--jq", ".object | [.type,.sha] | @tsv", check=False)
+        if obj.returncode:
+            return oid
+        kind, oid = obj.stdout.strip().split("\t", 1)
+        if kind == "commit":
+            return oid
+        if kind != "tag":
+            raise SystemExit("release tag resolves to a non-commit object")
+    raise SystemExit("release tag nesting is unexpectedly deep")
+
+
 def main():
     if os.environ.get("GITHUB_REF") != "refs/heads/main":
         raise SystemExit("release publishing is main-only")
@@ -54,7 +69,7 @@ def main():
         data = json.loads(release.stdout)
         if data["isDraft"] or data["isPrerelease"] or data["tagName"] != tag:
             raise SystemExit("existing release is draft, prerelease, or mismatched")
-        resolved = run("gh", "api", "repos/Leftium/continuum/git/ref/tags/" + tag, "--jq", ".object.sha").stdout.strip()
+        resolved = tag_commit(tag)
         if resolved != sha:
             raise SystemExit("existing release tag does not point to this merge SHA")
         print("Expected stable release already exists")
