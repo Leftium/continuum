@@ -49,7 +49,13 @@ Generated branch/run/bootstrap IDs avoid collisions. The private recovery journa
 must be outside the worktree; it records intent/pin and the bootstrap SHA before
 PR creation. It is not a prepared-work queue.
 
-Default stable discovery stops until a supported stable 0.4 release exists.
+Default stable discovery queries the trusted source repository's latest stable
+release. It accepts only `v0.4.0` or `0.4.0`, resolves the tag through GitHub's
+commit endpoint to a full 40-character commit SHA, and reads
+`protocol/CONTINUUM.md` at that SHA. The artifact metadata must match 0.4.0.
+The resulting contract and recovery journal retain that exact pin; resume does
+not rediscover a newer release. Missing, draft, prerelease or unsupported releases
+stop bootstrap without falling back to `main` or 0.3.
 Authorized testing can use `--development-source --source-commit <40-character-sha>`;
 this does not satisfy stable publication or migration prerequisites.
 

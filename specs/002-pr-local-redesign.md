@@ -1,6 +1,6 @@
 # PR-native Continuum redesign
 
-Status: accepted architecture for issue #14 and PR #15 at `e55c8da75fe826656c2f3263497d0ac2211000e5`, after the clean T3 review. This document preserves the design rationale and historical constraints. The normative 0.4 wire formats and lifecycle are now in `protocol/CONTINUUM.md`; client instructions are in `docs/client.md`. PR #15 and the reference repository remain governed by 0.3 until the gated migration.
+Status: accepted architecture for issue #14 and PR #15 at `e55c8da75fe826656c2f3263497d0ac2211000e5`, after the clean T3 review. This document preserves the design rationale and historical constraints. The normative 0.4 wire formats and lifecycle are now in `protocol/CONTINUUM.md`; client instructions are in `docs/client.md`. PR #15 merged under 0.3 without migrating the reference repository, which remains governed by 0.3 until the gated migration.
 
 ## Direction
 
@@ -544,7 +544,7 @@ The migration PR itself remains governed by 0.3 until it merges. If it removes i
 
 Before final migration merge, a supported stable 0.4 release/artifact must exist at the canonical source so the repository does not land in a state that advertises a nonexistent or older protocol.
 
-PR #15 remains governed by 0.3 unless an explicit later decision makes it the final migration PR under these conditions.
+PR #15 merged under 0.3 as the protocol/client implementation. The final migration requires a separate designated PR under these conditions.
 
 ### Reopening old 0.3 work after migration
 
@@ -697,4 +697,4 @@ The standalone 0.4 protocol must define one interoperable representation for con
 
 Those details must make independent clients compute and validate the same state without relying on hidden chat context.
 
-Only after these boundaries survive independent review should PR #15 move from design work into normative protocol implementation.
+These boundaries required independent review before normative protocol implementation in PR #15. That implementation has merged; the canonical protocol now lives in `protocol/CONTINUUM.md`.

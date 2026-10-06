@@ -13,10 +13,12 @@ Python 3.9+, Git and `gh`; other clients can perform the same transactions.
 Stable release discovery pins an exact source commit and stops until a supported
 stable 0.4 release exists. Explicit development pins support authorized testing.
 
-This repository and PR #15 **remain governed by 0.3** during implementation.
+The 0.4 protocol/client and optional PR-labeling implementation have merged.
+This reference repository **remains governed by 0.3** until its gated migration.
 The installed root protocol/templates/finalizer below are intentionally retained.
 Removal requires the admission gate, full drain, stable 0.4 release and designated
 final migration described in [migration instructions](docs/migration.md).
+See the [release checklist](docs/release.md) for the 0.4.0 publication boundary.
 
 ## Retained 0.3 model
 
