@@ -218,14 +218,18 @@ python3 /trusted/continuum/scripts/continuum.py cleanup --pr <pr-url> \
 
 The client claims cleanup, verifies bootstrap/current-base ownership, removes
 only the owned block, commits/pushes the exact head and records provenance.
+The reference client owns no whitespace outside its block. It deletes the entire
+`AGENTS.md` only when the remainder is empty, bootstrap created the file, and the
+current accepted base does not own the path.
 Failed/ambiguous push retains the claim; rerun the SAME run to verify/retry the
 same commit. Changed state requires cancellation or human stale-owner recovery.
 Check required checks on cleanup HEAD before any separately authorized merge.
 
 A later Ready cycle with independently refreshed evidence and proven historical
 removal gets a no-op receipt without a commit. Restore-then-remove without a
-receipt is rejected. The recorded removal must remain an ancestor; subsequent
-`AGENTS.md` history must prove absence. Rewritten-history mapping is an explicit
+receipt is rejected. The client requires demonstrable Git ancestry: the recorded
+removal must remain an ancestor, and subsequent `AGENTS.md` history must prove
+absence. Rewritten-history mapping is an explicit
 human/capable-client handoff, not a validation bypass flag.
 
 `bash scripts/check-continuum.sh` runs retained 0.3 checks and offline 0.4 tests.

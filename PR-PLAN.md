@@ -13,6 +13,7 @@ Prepare the exact Continuum 0.4.0 release candidate on `main` without publishing
 - Verify `protocol/CONTINUUM.md`, the reference client, fixtures/tests, and docs consistently identify version 0.4.0.
 - Verify stable bootstrap discovery accepts the supported `v0.4.0` / `0.4.0` release name and resolves it to an immutable commit.
 - Review README, client, and migration guidance against the actual post-#15/#18 repository state.
+- Before fresh independent review, perform the human-authorized editorial pass on `protocol/CONTINUUM.md`: clarify the normal lifecycle, separate exceptional recovery, consolidate redundancy, and relocate non-normative client mechanics to `docs/client.md`. Preserve every requirement, wire format, normalization rule, transition, permission, guarantee, migration boundary, and observable client behavior. Leave uncertain simplifications unchanged.
 - Preserve all retained 0.3 root protocol/templates/finalizer/managed AGENTS machinery needed for the later designated migration PR.
 - Run the full retained 0.3 + 0.4 verification suite.
 - Record the exact reviewed release-candidate commit and release-note inputs.
@@ -33,7 +34,9 @@ Checkpoints are durable savepoints within an active writing run, not default han
 - README/client/migration docs do not describe merged PRs as still active.
 - Stable bootstrap discovery behavior remains pinned to a stable release and exact commit.
 - Retained 0.3 migration/finalization machinery remains intact.
-- `bash scripts/check-continuum.sh` passes.
+- Record before/after protocol line and whitespace-delimited word counts. Audit the editorial diff against the preceding candidate for semantic preservation, including literal wire blocks and event transitions.
+- Existing scripts, fixtures, and tests remain unchanged during the editorial pass.
+- `bash scripts/check-continuum.sh` and `git diff --check` pass.
 - Review staged/unstaged diffs and safe Git/GitHub destinations before each checkpoint push.
 - Release the write lease and mark Ready when preparation is complete.
 - Do not publish `v0.4.0`, migrate the repository, merge, or remove this temporary 0.3 plan until independently reviewed and separately authorized.
