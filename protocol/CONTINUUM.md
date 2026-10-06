@@ -11,8 +11,8 @@ and a temporary discovery pointer, never per-PR `CONTINUUM.md` or `PR-PLAN.md`.
 This canonical, client-neutral protocol is discovered through a supported GitHub
 release and pinned to an exact source commit.
 
-MUST, MUST NOT, and MAY are normative. The reference client is optional; other
-clients or authorized humans can perform these transactions and emit these formats.
+MUST, MUST NOT, SHOULD, and MAY are normative. The reference client is optional;
+other clients or authorized humans can perform these transactions and emit these formats.
 Unsupported or uncertain state MUST stop writes and produce a precise handoff.
 Do not infer success from a timeout.
 
