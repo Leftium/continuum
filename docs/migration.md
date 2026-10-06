@@ -1,9 +1,29 @@
 # Publishing and migrating to 0.4
 
-Adding the canonical artifact and client does not migrate this repository. Root
-`CONTINUUM.md`, templates, finalizer, `PR-PLAN.md` and managed AGENTS block retain
-0.3 semantics. The protocol/client implementation in PR #15 and optional
-PR-labeling work in PR #18 have merged under 0.3 without migrating this repository.
+## Reference repository boundary
+
+Stable [v0.4.0](https://github.com/Leftium/continuum/releases/tag/v0.4.0) was
+published at `76fed3f2fb03df0d7121fc8e026644431de16203`. The owner-established
+admission gate (#21 / merged PR #23) reserved issue #22 and claim identity
+`continuum-0.4-final-migration` for the single final migration, PR #24.
+
+This tree removes installed root `CONTINUUM.md`, the 0.3 templates/finalizer
+and their tests, installation-equality checks, and only the managed AGENTS block.
+The canonical 0.4 source/client/tests and project-owned gate text are preserved.
+`bash scripts/check-continuum.sh` now validates only the 0.4 source and client.
+Historical specs remain design records rather than active installed instructions.
+
+New work uses stable 0.4 only after PR #24 merges. PR #24 remains governed by 0.3
+through independent review, root `PR-PLAN.md` cleanup and separately authorized
+merge. Its accepted base is `c2a474850606171788c30be9a3e7183c19bdff02`.
+Because the branch-local finalizer is removed, use the pinned-base helper or the
+plan-only fallback below after review is clean. Recheck the drain and exact
+stable release before merge. Issue #16 waits for that merge.
+
+## Migration procedure and historical constraints
+
+The following procedure records the prerequisites and ordering used for the
+reference repository migration and applies to other retained 0.3 installations.
 
 Publication is separately authorized; use the [release checklist](release.md).
 Review/check the artifact at an exact

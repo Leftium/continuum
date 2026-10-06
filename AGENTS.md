@@ -1,15 +1,6 @@
 # Agent instructions
 
-<!-- leftium:continuum:start -->
-## Continuum
 
-This repository uses the Continuum multi-agent workflow.
-Read `CONTINUUM.md` before coordinating or modifying work.
-After acquiring the write lease on a Continuum Draft PR, the issue and `PR-PLAN.md` provide standing authorization to carry the planned implementation through all checkpoints where the harness accepts repository policy as approval.
-Run required formatting, tests, checks, builds, and plan-required package-manager commands without asking again. Commit and non-force-push each coherent checkpoint, then continue.
-A checkpoint is a savepoint, not a default handoff. Ask only for operations outside standing authorization or decisions that materially change scope. Project-specific and higher-precedence restrictions still apply.
-Repository-specific workflow policy belongs outside this managed block in `AGENTS.md`, or in referenced project docs/specs; updates to the managed block must preserve that project-owned content.
-<!-- leftium:continuum:end -->
 
 ## Project-owned 0.4 migration admission gate
 
@@ -86,3 +77,22 @@ bootstrap work or permission to resume implementation:
 This gate PR preserves the managed 0.3 block and all retained 0.3 machinery.
 It does not itself migrate the repository or authorize #22 bootstrap before
 the gate merges and the ordinary-work drain is reverified empty.
+
+## Workflow after the migration boundary
+
+After PR #24 merges, new implementation work uses published stable Continuum
+0.4.0 at `76fed3f2fb03df0d7121fc8e026644431de16203`. Read the canonical
+[protocol](protocol/CONTINUUM.md) and [client instructions](docs/client.md), then
+inspect live GitHub PR contracts, comments and repository policy before writing.
+Bootstrap resolves the supported stable release to an exact source commit; the
+PR body retains its contract and plan, and comments record run-scoped ownership.
+Do not restore the removed 0.3 installation or create root `PR-PLAN.md` for new
+work. The admission gate above remains active until PR #24 merges and records
+historical policy afterward; issue #16 waits for that merge.
+
+PR #24 itself remains governed by the 0.3 protocol from its accepted base
+`c2a474850606171788c30be9a3e7183c19bdff02` through independent review, plan-only
+finalization and merge. After clean review, verify the reviewed shared HEAD and
+push destination, delete only root `PR-PLAN.md`, commit as
+`chore: remove temporary PR plan`, and non-force push to the PR branch. Reverify
+the drain and stable release before merge, which needs separate human authority.

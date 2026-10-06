@@ -1,16 +1,23 @@
 # Publishing Continuum 0.4.0
 
-Release preparation does not authorize publication. Issue #19 owns the publication
-decision; PR #20 prepares the candidate for independent review. This repository
-continues to use the retained 0.3 workflow until a separate gated migration.
+Stable [v0.4.0](https://github.com/Leftium/continuum/releases/tag/v0.4.0) was
+published under the owner's authority in issue #19 at exact commit
+`76fed3f2fb03df0d7121fc8e026644431de16203`. PR #20 prepared the independently
+reviewed candidate. The release is neither draft nor prerelease; its tag resolves
+to that commit. Published tags must not move.
+
+Publication and repository migration are separate boundaries. PR #24 removes
+the retained 0.3 installation; new work uses stable 0.4 only after its merge.
+See [migration.md](migration.md). This document preserves the original 0.4.0
+publication procedure and release-note inputs; it authorizes no new release.
 
 ## Release contract
 
 The canonical release artifact is `protocol/CONTINUUM.md`, with version `0.4.0`
 and artifact path in its front matter. The reference client, contract fixtures,
-and documented supported version must agree. Root `CONTINUUM.md` and its
-templates intentionally remain at 0.3.0; they are migration infrastructure,
-not the 0.4 release artifact.
+and documented supported version must agree. At publication, root
+`CONTINUUM.md` and its templates remained at 0.3.0 as migration infrastructure.
+PR #24 removes them; they were never the 0.4 release artifact.
 
 Stable bootstrap queries `repos/Leftium/continuum/releases/latest`, accepts
 `v0.4.0` or `0.4.0`, rejects draft/prerelease results, and resolves the tag via
@@ -19,7 +26,7 @@ artifact metadata, then retains that immutable source pin in the PR contract
 and recovery journal. It never substitutes `main`, an older protocol, or an
 unapproved development pin. Publication uses the tag `v0.4.0`.
 
-## Publication checklist
+## Historical 0.4.0 publication checklist
 
 1. Run `bash scripts/check-continuum.sh` on the preparation candidate. Record its
    full commit SHA and check evidence in the preparation PR, not in this file.
@@ -40,9 +47,10 @@ unapproved development pin. Publication uses the tag `v0.4.0`.
    release reports `v0.4.0`. Confirm the artifact at that pin matches the reviewed
    source. A development pin or passing offline tests cannot establish publication.
 
-After publication, establish the admission gate and full 0.3 drain described in
-[migration.md](migration.md), then perform the designated final migration.
-The docs-site work in issue #16 follows that boundary.
+After publication, the owner established the admission gate in #21 / PR #23.
+Issue #22 / PR #24 performs the designated final migration after the full 0.3
+drain described in [migration.md](migration.md). The docs-site work in issue #16
+follows that merge boundary.
 
 ## Release-note inputs
 
