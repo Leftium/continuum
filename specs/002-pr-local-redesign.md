@@ -98,6 +98,36 @@ During Draft implementation, the active run-scoped write lease owns cooperative 
 
 Humans remain authoritative and may edit the PR body at any time. A human edit that changes the controlled section, or causes its recorded digest to stop matching, is an external contract change. The active writer must stop, reconcile the new content, and obtain any required human/project decision before further implementation. Scope or acceptance changes require human/project authority unless that authority was explicitly delegated.
 
+### Invalid contract metadata and repair
+
+A controlled section whose recorded revision/digest does not validate is not writable through the ordinary body-update or write-lease acquisition path. It enters **contract-repair required** state.
+
+Contract repair is bounded metadata recovery, not implementation authorization.
+
+If invalid metadata is discovered while no write lease is held:
+
+1. stop implementation/cleanup progression;
+2. verify no active/suspended write lease, cleanup claim, or repair claim exists;
+3. identify the trusted PR/protocol identity, current target/head, the last valid accepted contract revision when available, and the exact raw controlled-section snapshot currently visible on GitHub;
+4. obtain any required human/project acceptance of that exact edited snapshot;
+5. durably acquire an exclusive contract-repair claim bound to the raw snapshot identity, current HEAD, and target;
+6. re-read the PR body and verify the approved raw snapshot has not changed;
+7. reject or separately reconcile any attempted protocol-pin, target, scope, or acceptance change that lacks the authority normally required for that change;
+8. preserve the accepted edited content, assign the next valid contract revision, recompute the digest, and replace only the controlled section while preserving unrelated PR-description content;
+9. re-read and validate the repaired revision/digest;
+10. record the repair, its predecessor/accepted snapshot, and any evidence invalidated by the edit; and
+11. release/complete the repair claim.
+
+If invalid metadata is discovered while an active writer still holds the write lease, that same lease enters **contract-repair mode** instead of being released merely to repair metadata. The writer stops implementation writes and may perform only the bounded repair steps above against the exact accepted raw snapshot. Another writer cannot acquire while that lease remains held. If the writer cannot complete repair, normal suspended/stale-owner recovery applies before another repair owner proceeds.
+
+A client without permission to edit the PR body provides the authorized human/PR author the complete replacement controlled section, including the computed revision/digest, then re-reads and validates the result. The human is not required to calculate protocol metadata manually.
+
+A failed or interrupted unleased repair claim is recovered like other exclusive cooperative claims: a human establishes that the repair run stopped, records recovery, and only then allows another repair claim, cleanup claim, or implementation lease.
+
+No implementation branch write, normal contract mutation, Ready transition, review acceptance, or cleanup may proceed while contract metadata is invalid or an unresolved repair claim exists.
+
+Repair makes metadata valid around explicitly accepted content; it does not silently authorize a new scope, target, protocol version, or other decision.
+
 Workflow-significant changes to scope, acceptance criteria, target identity, or a reviewed implementation plan must also leave a durable PR comment explaining the change. Routine clarifications and formatting edits outside the controlled section need not create separate comments.
 
 Checkpoint, verification, Ready, review, and cleanup evidence bind to an accepted state tuple:
@@ -317,8 +347,8 @@ To begin a writing run:
 1. verify the PR is open and Draft;
 2. verify target/base identity and current head repository/ref;
 3. verify current branch HEAD is the expected checkpoint;
-4. verify the canonical contract revision/digest;
-5. verify no active/suspended write lease and no active cleanup claim exists;
+4. verify the canonical contract revision/digest; if it is invalid, enter the contract-repair transition above instead of acquiring a normal write lease;
+5. verify no active/suspended write lease, cleanup claim, or repair claim exists;
 6. check recorded blockers/dependencies and applicable project policy;
 7. durably record the run ID/writer, expected HEAD, accepted target, and contract revision/digest and acquire the lease;
 8. only then modify the branch or Continuum-controlled PR-body section.
@@ -476,15 +506,17 @@ Before draining 0.3 work, the project owner establishes a durable migration gate
 
 While the gate is active:
 
-- no new 0.3 acquisition claim/bootstrap may start;
+- no new ordinary 0.3 acquisition claim/bootstrap may start;
 - no closed 0.3 PR may be reopened for implementation;
 - no orphan/in-flight pre-PR 0.3 branch is implicitly adoptable;
 - already-open 0.3 PRs may continue only to finish or be explicitly abandoned;
 - a bootstrap that began before the gate must either be completed into a known 0.3 PR included in the drain inventory or explicitly abandoned by a human.
 
-The drain inventory includes Draft/Ready unmerged 0.3 PRs, active or suspended leases, known pre-PR claims/bootstraps, and closed-unmerged 0.3 work that the project intends to resume.
+The gate records exactly one **designated final migration PR/claim**. That migration work is the sole exemption from the no-new-0.3-start rule and ordinary drain inventory: it may be created or continued under 0.3 solely to perform the migration described below. Its identity/scope must be recorded in the gate before its bootstrap starts, and it cannot be repurposed for ordinary implementation work.
 
-The gate remains active through the final migration merge, and the final migration rechecks the drain before merging.
+The drain inventory includes every other Draft/Ready unmerged 0.3 PR, active or suspended lease, known pre-PR claim/bootstrap, and closed-unmerged 0.3 work that the project intends to resume.
+
+The gate remains active through the designated final migration merge, and that PR rechecks the drain before merging.
 
 ### Active 0.3 PR rule
 
@@ -548,10 +580,11 @@ A cleanup run may claim cleanup only when:
 - the PR is open and Ready;
 - implementation and required verification are complete;
 - review is otherwise clean;
-- no active/suspended write lease or cleanup claim exists;
+- no active/suspended write lease, cleanup claim, or repair claim exists;
+- the canonical contract revision/digest is valid;
 - durable implementation knowledge has been promoted and reviewed;
 - current target/base and applicable policy have been revalidated; and
-- the temporary pointer is expected to belong to this PR/bootstrap.
+- either the temporary pointer is present and expected to belong to this PR/bootstrap, or it is absent with durable provenance showing that this bootstrap's pointer was previously removed through authorized cleanup and has not been restored through an unexplained transition.
 
 The cleanup claim comment records:
 
@@ -566,7 +599,11 @@ Implementation lease acquisition must reject an active cleanup claim. Returning 
 
 ### Cleanup execution
 
-After claiming cleanup, the run re-fetches and verifies the claimed tuple and pointer ownership. It removes only the exact owned temporary block.
+After claiming cleanup, the run re-fetches and verifies the claimed readiness tuple and pointer/removal provenance.
+
+#### Pointer present: removal cleanup
+
+If the owned temporary pointer is present, the run removes only that exact block.
 
 Whole-file `AGENTS.md` deletion is allowed only under the stricter ownership rule above: bootstrap created the path, the post-removal remainder is empty/whitespace-only, and the current accepted base does not own the file.
 
@@ -574,11 +611,32 @@ The run must preserve clean tracked/index state, stage only the authorized point
 
 If any claimed value changed before the cleanup write, stop and reconcile rather than committing against stale state.
 
+On success, the cleanup completion record stores durable **removal provenance**: bootstrap ID, removal commit (or equivalent verified branch transition), pointer identity, and the readiness tuple under which removal occurred.
+
+#### Pointer absent: verified no-op cleanup
+
+Pointer restoration after post-cleanup fixes is optional. Therefore an absent pointer can be a normal state even when the current Ready tuple differs from the tuple that originally removed it.
+
+A cleanup claim may complete as a verified no-op without creating a Git commit when all of the following hold:
+
+1. durable historical removal provenance exists for this same bootstrap ID/pointer identity;
+2. the current branch tree contains no owned temporary pointer;
+3. branch history/current-tree evidence is consistent with the authorized removal and contains no later unexplained restoration/removal transition; normally the original cleanup commit remains in current HEAD ancestry, or an explicit later rebase/history reconciliation durably maps that removal into the current history;
+4. the current PR is Ready and the current contract revision/digest, HEAD, target/ref, checked base SHA, review state, verification, and project policy are valid for the **current** readiness tuple;
+5. no active/suspended write lease, repair claim, or competing cleanup claim exists; and
+6. there is no stale/foreign temporary pointer or unexplained `AGENTS.md` state.
+
+The no-op completion record references the historical removal provenance and records that cleanup remains satisfied for the current readiness tuple. It does not pretend that the old cleanup tuple equals the new one and does not create a metadata-only deletion commit.
+
+A harmless advancement of the checked base SHA after pointer removal may use this path after normal target/base revalidation.
+
+If the pointer's absence cannot be connected to authorized removal provenance, cleanup stops for human recovery.
+
 ### Cleanup recovery
 
 - **Local cleanup commit, push failed:** keep the cleanup claim. Verify the PR is still Ready, the claimed contract/target is current, and remote HEAD still equals the claimed reviewed HEAD. Then retry only the exact authorized cleanup commit. If remote HEAD advanced, stop and reconcile.
 - **Push may have succeeded but recording/verification failed:** inspect the exact remote head and cleanup commit identity. If the authorized cleanup commit is the remote result and the expected pointer removal is verified, record recovered completion. If remote state is ambiguous or advanced unexpectedly, stop for reconciliation; do not infer success from pointer absence alone.
-- **Pointer already absent when cleanup begins:** look for a matching prior cleanup-completion record/commit for the same bootstrap ID and accepted tuple. Without one, stop and ask for human recovery instead of treating absence as success.
+- **Pointer already absent when cleanup begins:** use the verified no-op cleanup path above. Historical removal provenance must match the bootstrap/pointer identity, while current readiness is validated against the current tuple. Do not require the old and current readiness tuples to be identical. Without trustworthy removal provenance and consistent current history/tree evidence, stop for human recovery instead of treating absence as success.
 - **Concurrent remote advancement:** cleanup does not force-push or replay over it. Reconcile ownership, lifecycle state, target, contract revision, and review evidence first.
 - **Cleanup run terminates:** a human may recover an evidently stale cleanup claim after establishing the run stopped, just as with a stale write lease. Record recovery before another cleanup claim or write lease begins.
 
@@ -616,15 +674,27 @@ Before normative 0.4 implementation begins, the design should be executable on p
 - permanent Continuum-only repository hints surviving cleanup;
 - stale temporary pointer discovered on target/default/unrelated branch;
 - concurrent or human PR-body edits during a write lease;
+- invalid controlled-section digest while unleased, followed by exclusive repair;
+- invalid controlled-section digest during a held write lease, repaired in lease-held repair mode;
+- interrupted/stale contract-repair claim;
 - material plan/contract revision after Ready/review;
 - retargeting during an active lease, while Ready, and after pointer cleanup;
 - rebase/target advancement changing policy or merge assumptions;
 - cleaned-up but unmerged Continuum parent selected as a base;
 - unexplained foreign temporary pointer on the selected base;
 - cleanup push failure, uncertain success, stale cleanup claim, and concurrent advancement;
+- a second Ready cycle after post-cleanup fixes where the optional pointer was not restored, ending in verified no-op cleanup;
+- harmless checked-base advancement after pointer removal followed by no-op cleanup revalidation;
+- unexplained pointer absence that must still fail closed;
 - unexpected concurrent head changes;
 - migration gate blocking new/in-flight 0.3 starts;
 - reopening closed 0.3 work after migration and explicit 0.4 conversion;
 - final 0.3-to-0.4 migration of the Continuum reference repository.
+
+## Normative drafting requirements
+
+The standalone 0.4 protocol must define one interoperable representation for controlled-section delimiters, contract revision numbering, digest algorithm/normalization, raw-snapshot identity used by repair claims, lease/repair/cleanup event fields, and removal-provenance records.
+
+Those details must make independent clients compute and validate the same state without relying on hidden chat context.
 
 Only after these boundaries survive independent review should PR #15 move from design work into normative protocol implementation.
