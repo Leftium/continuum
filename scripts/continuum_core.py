@@ -266,7 +266,42 @@ def validate_tuple(value):
 
 def event_text(event):
     validate_event(event)
-    return EVENT_START + "\n```json\n" + pretty(event) + "\n```\n" + EVENT_END
+    # Escape framing lookalikes in values without changing the parsed metadata.
+    metadata = canonical(event).decode("ascii").replace("<", "\\u003c")
+    return (event_summary(event) + "\n\n<details>\n<summary>Continuum metadata</summary>\n\n"
+            + EVENT_START + "\n```json\n" + metadata + "\n```\n" + EVENT_END
+            + "\n\n</details>")
+
+
+def event_summary(event):
+    """Presentation only; controlled metadata remains the replay authority."""
+    action, kind = event["action"], event["kind"]
+    if action == "claim":
+        message = {"write": "Write lease acquired", "repair": "Metadata repair lease acquired",
+                   "cleanup": "Pointer cleanup lease acquired"}[kind]
+    elif action == "cleanup_complete":
+        message = ("Pointer cleanup confirmed (already absent)" if event["details"].get("no_op") is True
+                   else "Pointer cleanup completed")
+    else:
+        message = {
+            "checkpoint": "Checkpoint saved; write lease retained",
+            "verify": "Verification recorded",
+            "ready": "Ready evidence recorded",
+            "review": "Independent review recorded",
+            "release": "Lease released",
+            "suspend": "Lease suspended; ownership retained",
+            "resume": "Lease resumed",
+            "repair_enter": "Metadata repair started; write lease retained",
+            "repair_complete": "Metadata repair completed",
+            "recover": "Human-authorized ownership recovery recorded",
+            "revalidate": "Base revalidation recorded",
+            "cleanup_cancel": "Pointer cleanup cancelled; lease ended",
+        }[action]
+    summary = f"**{message}.** Actor `{event['actor']}`; run `{event['run']}`."
+    if event["tuple"] is not None:
+        value = event["tuple"]
+        summary += f"\n\nContract r{value['revision']}; HEAD `{value['head_sha'][:7]}`."
+    return summary
 
 
 ACTIONS = {"claim", "checkpoint", "suspend", "resume", "repair_enter", "repair_complete", "release", "recover", "verify", "ready", "review", "revalidate", "cleanup_complete", "cleanup_cancel"}

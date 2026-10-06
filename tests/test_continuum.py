@@ -126,6 +126,89 @@ class ContractTests(unittest.TestCase):
                 c.read_contract(altered)
 
 
+class EventPresentationTests(unittest.TestCase):
+    def test_compact_round_trip_preserves_values_and_exact_framing(self):
+        item = event(c.State(), "claim", details={
+            "acceptance": "Decision: " + c.EVENT_START + " / " + c.EVENT_END,
+            "context": "Unicode: \u00e9 \U0001f680; newline:\n; HTML: <details>",
+        })
+        original = copy.deepcopy(item)
+        text = c.event_text(item)
+        _, _, raw, parsed = c.section(text, c.EVENT_START, c.EVENT_END)
+        self.assertEqual(parsed, original)
+        self.assertEqual(item, original)
+        self.assertEqual(len(raw.splitlines()), 5)
+        self.assertEqual(raw.splitlines()[1], "```json")
+        self.assertEqual(raw.splitlines()[2], c.canonical(item).decode("ascii").replace("<", "\\u003c"))
+        self.assertEqual(text.count(c.EVENT_START), 1)
+        self.assertEqual(text.count(c.EVENT_END), 1)
+        self.assertIn("<details>\n<summary>Continuum metadata</summary>\n\n" + raw + "\n\n</details>", text)
+        self.assertNotIn("<details open", text)
+        self.assertLess(text.index("**Write lease acquired."), text.index("<details>"))
+
+    def test_comments_and_replay_accept_mixed_legacy_and_wrapped_history(self):
+        history = ready_history()
+        def comment(item, text):
+            return {"body": text, "user": {"login": "agent"}, "author_association": "OWNER"}
+        wrapped = [comment(item, "Introduction.\n\n" + c.event_text(item) + "\n\nFooter.") for item in history]
+        legacy = [comment(item, c.EVENT_START + "\n```json\n" + c.pretty(item) + "\n```\n" + c.EVENT_END) for item in history]
+        pr = {"user": {"login": "agent"}}
+        for records in (wrapped, legacy, [legacy[0]] + wrapped[1:]):
+            with patch.object(client, "api", return_value=[records[:2], records[2:]]):
+                parsed = client.comments("https://github.com/owner/project/pull/42", pr)
+            self.assertEqual(parsed, history)
+            self.assertEqual(c.replay(parsed), c.replay(history))
+        # Human prose can change without affecting the authoritative event.
+        text = c.event_text(history[0]).replace("Write lease acquired", "Human annotation")
+        self.assertEqual(c.section(text, c.EVENT_START, c.EVENT_END)[3], history[0])
+
+    def test_summaries_cover_every_action_and_ownership_kind(self):
+        expected = {
+            "claim": "Write lease acquired", "checkpoint": "Checkpoint saved; write lease retained",
+            "suspend": "Lease suspended; ownership retained", "resume": "Lease resumed",
+            "repair_enter": "Metadata repair started; write lease retained",
+            "repair_complete": "Metadata repair completed", "release": "Lease released",
+            "recover": "Human-authorized ownership recovery recorded", "verify": "Verification recorded",
+            "ready": "Ready evidence recorded", "review": "Independent review recorded",
+            "revalidate": "Base revalidation recorded", "cleanup_complete": "Pointer cleanup completed",
+            "cleanup_cancel": "Pointer cleanup cancelled; lease ended",
+        }
+        self.assertEqual(set(expected), c.ACTIONS)
+        repair = {"acceptance": "decision", "raw_digest": "sha256:" + "c" * 64,
+                  "last_revision": 0, "snapshot": c.readiness_tuple(contract(), "a" * 40, "b" * 40)}
+        for action, label in expected.items():
+            kind = ("evidence" if action in ("verify", "ready", "review", "revalidate") else
+                    "cleanup" if action.startswith("cleanup_") else "recovery" if action == "recover" else "write")
+            details = repair if action == "repair_enter" else {"acceptance": "decision", "reason": "blocked", "human_confirmation": "decision"}
+            item = event(c.State(), action, kind=kind, details=details)
+            with self.subTest(action=action):
+                text = c.event_text(item)
+                self.assertTrue(text.startswith("**" + label + ".** Actor `agent`; run `" + RUN + "`."))
+                self.assertIn("Contract r1; HEAD `aaaaaaa`.", text)
+        for kind, label in (("repair", "Metadata repair lease acquired"), ("cleanup", "Pointer cleanup lease acquired")):
+            item = event(c.State(), "claim", kind=kind, details=repair)
+            self.assertTrue(c.event_text(item).startswith("**" + label + ".**"))
+        item = event(c.State(), "cleanup_complete", kind="cleanup", details={"no_op": True})
+        self.assertTrue(c.event_text(item).startswith("**Pointer cleanup confirmed (already absent).**"))
+        item = event(c.State(), "suspend", details={"reason": "invalid metadata"})
+        item["tuple"] = None
+        self.assertNotIn("Contract r", c.event_text(item))
+
+    def test_wrappers_do_not_hide_malformed_or_duplicate_machine_sections(self):
+        text = c.event_text(event(c.State(), "claim"))
+        raw = c.section(text, c.EVENT_START, c.EVENT_END)[2]
+        variants = (text + raw, text.replace("event:0.4", "event:0.5"),
+                    text + "\n<!-- continuum:event:broken -->", text + c.EVENT_END,
+                    text.replace("```json", "```"), text.replace("\n", "\r\n"),
+                    text.replace(c.EVENT_START, c.EVENT_END).replace(c.EVENT_END + "\n\n</details>", c.EVENT_START + "\n\n</details>"),
+                    text.replace('"action":"claim"', '"action":"claim","action":"claim"'))
+        for altered in variants:
+            with self.subTest(text=altered), patch.object(client, "api", return_value=[[{
+                "body": altered, "user": {"login": "agent"}, "author_association": "OWNER",
+            }]]), self.assertRaises(c.Invalid):
+                client.comments("https://github.com/owner/project/pull/42", {"user": {"login": "agent"}})
+
+
 class ReleaseArtifactTests(unittest.TestCase):
     def test_pinned_artifact_uses_exact_commit_and_canonical_path(self):
         source = contract()["source"]
