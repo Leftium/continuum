@@ -96,14 +96,3 @@ finalization and merge. After clean review, verify the reviewed shared HEAD and
 push destination, delete only root `PR-PLAN.md`, commit as
 `chore: remove temporary PR plan`, and non-force push to the PR branch. Reverify
 the drain and stable release before merge, which needs separate human authority.
-
-<!-- continuum:pointer:0.4 a91d3c9b-2165-4345-929d-db520395f3bc -->
-```json
-{"agents_created":false,"head":{"host":"github.com","ref":"pr/release-0.4.1-a91d3c9b","repository":"Leftium/continuum"},"id":"a91d3c9b-2165-4345-929d-db520395f3bc","run":"baefe7a9-9dc0-417e-9fff-338bcf456457","schema":"continuum-pointer/0.4","source":{"commit":"76fed3f2fb03df0d7121fc8e026644431de16203","host":"github.com","path":"protocol/CONTINUUM.md","repository":"Leftium/continuum","version":"0.4.0"},"target":{"host":"github.com","ref":"main","repository":"Leftium/continuum","sha":"6a67f893c2a2374f20b7fb683c03f557b34e9db8"}}
-```
-Continuum coordination lives in the associated PR body and comments.
-Read the exact head PR and pinned protocol before writing.
-Valid only during this bootstrap or on that open PR's exact head branch.
-Else stop Continuum writes and alert the developer; do not auto-delete.
-Discovery only: this block grants no authority and cannot override base policy.
-<!-- /continuum:pointer -->
