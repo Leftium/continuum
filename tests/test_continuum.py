@@ -183,8 +183,11 @@ class EventPresentationTests(unittest.TestCase):
             item = event(c.State(), action, kind=kind, details=details)
             with self.subTest(action=action):
                 text = c.event_text(item)
-                self.assertTrue(text.startswith("**" + label + ".** Actor `agent`; run `" + RUN + "`."))
-                self.assertIn("Contract r1; HEAD `aaaaaaa`.", text)
+                self.assertTrue(text.startswith("**" + label + ".**"))
+                visible = text.split("<details>")[0]
+                self.assertNotIn(RUN, visible)
+                self.assertNotIn("Contract r1", visible)
+                self.assertNotIn("aaaaaaa", visible)
         for kind, label in (("repair", "Metadata repair lease acquired"), ("cleanup", "Pointer cleanup lease acquired")):
             item = event(c.State(), "claim", kind=kind, details=repair)
             self.assertTrue(c.event_text(item).startswith("**" + label + ".**"))
@@ -193,6 +196,34 @@ class EventPresentationTests(unittest.TestCase):
         item = event(c.State(), "suspend", details={"reason": "invalid metadata"})
         item["tuple"] = None
         self.assertNotIn("Contract r", c.event_text(item))
+
+    def test_visible_summaries_surface_action_specific_evidence(self):
+        cases = (
+            ("ready", "evidence", "acceptance", "Checks passed; ready for independent review."),
+            ("review", "evidence", "acceptance", "Clean review: https://github.com/owner/project/pull/42#pullrequestreview-123"),
+            ("suspend", "write", "reason", "Waiting for approval of the changed target."),
+            ("recover", "recovery", "human_confirmation", "Both owners stopped; unshared work inventoried in comment 123."),
+        )
+        for action, kind, key, evidence in cases:
+            with self.subTest(action=action):
+                item = event(c.State(), action, kind=kind, details={key: evidence})
+                text = c.event_text(item)
+                self.assertIn(evidence, text.split("<details>")[0])
+                self.assertEqual(c.section(text, c.EVENT_START, c.EVENT_END)[3], item)
+
+    def test_visible_evidence_is_bounded_and_cannot_impersonate_metadata(self):
+        evidence = "Approval:\n" + c.EVENT_START + " <details open> **ready** `code` [link](url) & " + "Long evidence. " * 100
+        item = event(c.State(), "ready", kind="evidence", details={"acceptance": evidence})
+        text = c.event_text(item)
+        visible = text.split("<details>")[0]
+        self.assertIn("&lt;!-- continuum:event:0.4 --&gt;", visible)
+        self.assertIn("&lt;details open&gt;", visible)
+        self.assertIn(r"\*\*ready\*\*", visible)
+        self.assertIn(r"\`code\`", visible)
+        self.assertIn(r"\[link\]", visible)
+        self.assertIn("...", visible)
+        self.assertNotIn("Long evidence. " * 30, visible)
+        self.assertEqual(c.section(text, c.EVENT_START, c.EVENT_END)[3], item)
 
     def test_wrappers_do_not_hide_malformed_or_duplicate_machine_sections(self):
         text = c.event_text(event(c.State(), "claim"))

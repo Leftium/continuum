@@ -2,6 +2,7 @@
 
 import copy
 import hashlib
+import html
 import json
 import re
 import uuid
@@ -297,10 +298,19 @@ def event_summary(event):
             "revalidate": "Base revalidation recorded",
             "cleanup_cancel": "Pointer cleanup cancelled; lease ended",
         }[action]
-    summary = f"**{message}.** Actor `{event['actor']}`; run `{event['run']}`."
-    if event["tuple"] is not None:
-        value = event["tuple"]
-        summary += f"\n\nContract r{value['revision']}; HEAD `{value['head_sha'][:7]}`."
+    summary = f"**{message}.**"
+    key = ("reason" if action in ("suspend", "cleanup_cancel") else
+           "human_confirmation" if action == "recover" else "acceptance")
+    detail = event["details"].get(key)
+    if isinstance(detail, str) and detail.strip():
+        # Keep the full evidence in metadata; excerpts cannot inject Markdown,
+        # HTML, or reserved event delimiters into the surrounding presentation.
+        excerpt = " ".join(detail.split())
+        if len(excerpt) > 280:
+            excerpt = excerpt[:277].rsplit(" ", 1)[0] + "..."
+        excerpt = html.escape(excerpt, quote=False)
+        excerpt = re.sub(r"([\\`*_\[\]])", r"\\\1", excerpt)
+        summary += "\n\n" + excerpt
     return summary
 
 
