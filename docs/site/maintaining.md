@@ -7,8 +7,9 @@ successfully. The site uses MkDocs with its built-in Read the Docs theme, Markdo
 `docs/site/`, and navigation in `mkdocs.yml`. The left sidebar keeps site pages
 visible while nesting sections of the current page underneath them. A small
 `stylesheets/extra.css` override centers the 300px navigation and 800px article
-as one layout on wide screens while leaving narrower layouts unchanged. Generated
-HTML is ignored.
+as one layout on wide screens while leaving narrower layouts unchanged. A subtle
+right border makes the article pane's edge visible against the page background.
+Generated HTML is ignored.
 
 Protocol and client instructions stay in their existing repository files. The
 site links their immutable release sources instead of maintaining another copy.

@@ -8,6 +8,7 @@
   .wy-nav-content-wrap {
     margin-left: calc(50vw - 250px);
     margin-right: calc(50vw - 550px);
+    border-right: 1px solid #e1e4e5;
   }
 
   .wy-nav-content {
