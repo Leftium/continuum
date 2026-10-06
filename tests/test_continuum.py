@@ -1,7 +1,6 @@
 """Offline conformance and temporary-Git integration tests. No live GitHub writes."""
 
 import copy
-import hashlib
 import json
 import os
 from pathlib import Path
@@ -81,6 +80,17 @@ class ContractTests(unittest.TestCase):
         altered = raw.replace('"goal":', '"goal" :')
         self.assertEqual(c.read_contract(raw), c.read_contract(altered))
         self.assertNotEqual(c.sha256(raw.encode()), c.sha256(altered.encode()))
+
+    def test_plan_and_events_can_discuss_literal_delimiters(self):
+        value = c.seal({**contract(), "plan": [c.CONTRACT_START, c.CONTRACT_END]})
+        self.assertEqual(c.read_contract(c.render(value)), value)
+        item = event(c.State(), "claim", details={"acceptance": "Check " + c.EVENT_START})
+        self.assertEqual(c.section(c.event_text(item), c.EVENT_START, c.EVENT_END)[3], item)
+
+    def test_control_and_supplementary_unicode_normalization(self):
+        value = {"a": "\b\t\n\f\r\x00\x7f/\\\"\U0001f680"}
+        self.assertEqual(c.canonical(value), b'{"a":"\\b\\t\\n\\f\\r\\u0000\\u007f/\\\\\\"\\ud83d\\ude80"}')
+        self.assertNotEqual(c.canonical({"a": "\u00e9"}), c.canonical({"a": "e\u0301"}))
 
     def test_exact_repair_preserves_human_content_and_unrelated_body(self):
         body = (FIXTURES / "invalid-body.md").read_text()
@@ -195,6 +205,26 @@ class StateTests(unittest.TestCase):
         self.assertEqual(state.mode, "active")
         self.assertIsNotNone(state.active)
 
+    def test_suspended_writer_repair_resumes_only_repair_mode(self):
+        events = []
+        append(events, "claim")
+        repaired = c.readiness_tuple(c.seal(contract(), 2), "a" * 40, "b" * 40)
+        details = {"raw_digest": "sha256:" + "c" * 64, "last_revision": 1, "acceptance": "accepted snapshot", "snapshot": repaired}
+        append(events, "repair_enter", details=details)
+        append(events, "suspend", details={"reason": "body-edit approval"})
+        resumed = event(c.replay(events), "resume", details={"acceptance": "approval granted"})
+        resumed["tuple"] = None
+        state = c.replay(events + [resumed])
+        self.assertEqual(state.mode, "repair")
+        self.assertIsNotNone(state.active["tuple"])
+        with self.assertRaises(c.Invalid):
+            c.replay(events + [resumed, event(state, "checkpoint")])
+
+    def test_same_writer_run_cannot_claim_independent_review(self):
+        events = ready_history()[:-1]
+        with self.assertRaises(c.Invalid):
+            append(events, "review", kind="evidence", details={"acceptance": "self-review", "independent_review": True})
+
     def test_cleanup_excludes_write_and_requires_current_review(self):
         events = ready_history()
         value = events[-1]["tuple"]
@@ -290,13 +320,16 @@ class GitIntegrationTests(unittest.TestCase):
         return subprocess.check_output(["git", *args], stderr=subprocess.DEVNULL, text=True).strip()
 
     def pr(self):
-        sha = self.g("ls-remote", "--heads", str(self.bare), "refs/heads/continuum/test").split()[0]
-        return {"state": "open" if self.open else "closed", "draft": self.draft, "body": c.render(self.value), "checked_base_sha": self.base,
-                "head": {"sha": sha, "ref": "continuum/test", "repo": {"full_name": self.value["head"]["repository"]}},
+        sha = self.g("ls-remote", "--heads", str(self.bare), "refs/heads/" + self.value["head"]["ref"]).split()[0]
+        return {"state": "open" if self.open else "closed", "draft": self.draft, "user": {"login": "agent"}, "body": self.body if hasattr(self, "body") else c.render(self.value), "checked_base_sha": self.base,
+                "head": {"sha": sha, "ref": self.value["head"]["ref"], "repo": {"full_name": self.value["head"]["repository"]}},
                 "base": {"ref": "main", "repo": {"full_name": self.value["target"]["repository"]}}}
 
     def snapshot(self, *_args, **_kwargs):
-        return self.pr(), self.value, list(self.events), c.replay(self.events)
+        value = c.section(self.pr()["body"])[3]
+        if not _kwargs.get("allow_invalid", False):
+            client.validate_current(value, c.replay(self.events), self.events)
+        return self.pr(), value, list(self.events), c.replay(self.events)
 
     def post(self, _url, item, _events):
         self.events.append(item)
@@ -418,8 +451,277 @@ class GitIntegrationTests(unittest.TestCase):
         with self.assertRaises(c.Invalid):
             client.origin_provenance(self.value)
 
+    def damage_contract(self):
+        self.body = "Introduction\n" + c.render(self.value).replace("Run focused checks", "Human accepted verification change") + "\nFooter\n"
+        self.value = c.section(self.body)[3]
+        return SimpleNamespace(pr=self.url, run=RUN, trusted_source=client.TRUSTED_SOURCE,
+                               accepted_raw=c.sha256(c.section(self.body)[2].encode()), last_revision=1,
+                               acceptance="Human accepted this exact content and all scope/pin decisions",
+                               output=str(self.root / "repair.md"), apply=True, complete=False)
+
+    def replace_body(self, _url, expected, replacement):
+        self.assertEqual(self.pr()["body"], expected)
+        self.body = replacement
+        self.value = c.read_contract(replacement)
+
+    def test_unleased_repair_validates_then_releases_claim(self):
+        args = self.damage_contract()
+        with patch.object(client, "write_body", self.replace_body):
+            client.repair(args)
+        state = c.replay(self.events)
+        self.assertIsNone(state.active)
+        self.assertEqual(state.evidence, {})
+        self.assertEqual(c.read_contract(self.body)["revision"], 2)
+        self.assertTrue(self.body.startswith("Introduction\n"))
+        self.assertTrue(self.body.endswith("\nFooter\n"))
+
+    def test_writer_repair_retains_implementation_lease(self):
+        self.draft = True
+        self.events = []
+        append(self.events, "claim", value=c.readiness_tuple(self.value, self.boot, self.base))
+        args = self.damage_contract()
+        with patch.object(client, "write_body", self.replace_body):
+            client.repair(args)
+        state = c.replay(self.events)
+        self.assertEqual(state.active["kind"], "write")
+        self.assertEqual(state.mode, "active")
+        self.assertEqual(state.active["tuple"]["revision"], 2)
+
+    def test_complete_human_repair_handoff_requires_exact_replacement(self):
+        args = self.damage_contract()
+        args.apply = False
+        client.repair(args)
+        self.assertEqual(c.replay(self.events).mode, "repair")
+        replacement = Path(args.output).read_bytes().decode()
+        self.replace_body(self.url, self.body, replacement)
+        args.complete = True
+        client.repair(args)
+        self.assertIsNone(c.replay(self.events).active)
+
+    def test_changed_snapshot_during_repair_preserves_claim(self):
+        args = self.damage_contract()
+        def competing_edit(url, item, events):
+            result = self.post(url, item, events)
+            if item["action"] == "claim":
+                self.body = self.body.replace("Human accepted", "Unexpected human edit")
+            return result
+        with patch.object(client, "post_event", competing_edit), patch.object(client, "write_body", side_effect=AssertionError("must not overwrite changed body")):
+            with self.assertRaises(c.Invalid):
+                client.repair(args)
+        self.assertEqual(c.replay(self.events).active["kind"], "repair")
+        self.assertIn("Unexpected human edit", self.body)
+
+    def test_suspended_invalid_digest_repair_can_resume(self):
+        args = self.damage_contract()
+        args.apply = False
+        client.repair(args)
+        append(self.events, "suspend", kind="repair", details={"reason": "body edit approval"})
+        details = self.root / "resume.json"
+        details.write_text(json.dumps({"acceptance": "human approval granted"}))
+        client.record(SimpleNamespace(pr=self.url, run=RUN, action="resume", details=str(details), trusted_source=client.TRUSTED_SOURCE))
+        self.assertEqual(c.replay(self.events).mode, "repair")
+        args.apply = True
+        with patch.object(client, "write_body", self.replace_body):
+            client.repair(args)
+        self.assertIsNone(c.replay(self.events).active)
+
+    def test_repair_handoff_cannot_overwrite_product_file(self):
+        args = self.damage_contract()
+        args.output = str(self.repo / "product.txt")
+        with self.assertRaises(c.Invalid):
+            client.repair(args)
+        self.assertEqual((self.repo / "product.txt").read_text(), "base\n")
+        self.assertIsNone(c.replay(self.events).active)
+
+    def test_valid_digest_cannot_hide_revision_rollback(self):
+        accepted = c.seal(self.value, 2)
+        self.events = ready_history(c.readiness_tuple(accepted, self.boot, self.base))
+        with self.assertRaises(c.Invalid):
+            self.snapshot()
+        args = SimpleNamespace(pr=self.url, run=RUN, trusted_source=client.TRUSTED_SOURCE,
+                               accepted_raw=c.sha256(c.section(c.render(self.value))[2].encode()), last_revision=2,
+                               acceptance="Human accepted exact restored content against revision 2", output=str(self.root / "repair.md"), apply=True, complete=False)
+        with patch.object(client, "write_body", self.replace_body):
+            client.repair(args)
+        self.assertEqual(self.value["revision"], 3)
+
+    def test_human_recomputed_digest_still_needs_a_new_revision(self):
+        self.value = c.seal({**self.value, "plan": ["Human updated plan without advancing revision"]})
+        with self.assertRaises(c.Invalid):
+            self.snapshot()
+
+    def bootstrap_journal(self):
+        self.draft, self.events = True, []
+        journal = {"run": RUN, "actor": "agent", "remote": "fork", "title": "Test bootstrap", "accepted_policy": "human decision",
+                   "contract": self.value, "commit": self.boot}
+        args = SimpleNamespace(remote="fork", journal=str(self.root / "bootstrap.json"), trusted_source=client.TRUSTED_SOURCE,
+                               resume=True, run=RUN, recovery_authority=None)
+        client.journal_write(args.journal, journal, initial=True)
+        return args, journal
+
+    def test_bootstrap_existing_pr_is_verified_without_duplicate_creation(self):
+        args, journal = self.bootstrap_journal()
+        response = {**self.pr(), "html_url": self.url}
+        with patch.object(client, "fetch_protocol"), patch.object(client, "api", return_value=[[response]]) as call:
+            client.finish_bootstrap(args, journal)
+        self.assertEqual(call.call_count, 1)
+        self.assertEqual(self.g("rev-parse", "HEAD"), self.boot)
+        self.assertEqual(json.loads(Path(args.journal).read_text())["pr"], self.url)
+
+    def test_uncertain_bootstrap_creation_retries_same_commit_only(self):
+        args, journal = self.bootstrap_journal()
+        response = {**self.pr(), "html_url": self.url}
+        lookups = 0
+        def responses(path, *_args):
+            nonlocal lookups
+            if "/pulls?" in path:
+                lookups += 1
+                return [[]] if lookups == 1 else [[response]]
+            return {"object": {"sha": self.base}}
+        original_run = subprocess.run
+        mutations = []
+        def uncertain(argv, **kwargs):
+            if argv[0] == "gh":
+                mutations.append(json.loads(kwargs["input"]))
+                return subprocess.CompletedProcess(argv, 1, stdout="", stderr="response lost")
+            return original_run(argv, **kwargs)
+        with patch.object(client, "fetch_protocol"), patch.object(client, "api", side_effect=responses), patch.object(client.subprocess, "run", side_effect=uncertain):
+            with self.assertRaises(c.Invalid):
+                client.finish_bootstrap(args, journal)
+            client.finish_bootstrap(args, journal)
+        self.assertEqual(len(mutations), 1)
+        self.assertTrue(mutations[0]["draft"])
+        self.assertEqual(mutations[0]["head_repo"], "fork")
+        self.assertEqual(mutations[0]["head"], "writer:continuum/test")
+        self.assertEqual(self.g("rev-parse", "HEAD"), self.boot)
+
+    def test_terminated_bootstrap_requires_explicit_human_recovery(self):
+        args, _ = self.bootstrap_journal()
+        args.run = REVIEW_RUN
+        with self.assertRaises(c.Invalid):
+            client.bootstrap(args)
+        self.assertEqual(self.g("rev-parse", "HEAD"), self.boot)
+
+    def test_complete_bootstrap_pins_once_and_pushes_only_fork(self):
+        base_transport = self.root / "base.git"
+        subprocess.run(["git", "init", "--bare", str(base_transport)], check=True, capture_output=True)
+        self.g("push", str(base_transport), "main:refs/heads/main")
+        plan_path = self.root / "plan.json"
+        plan_path.write_text(json.dumps({k: self.value[k] for k in ("goal", "scope", "acceptance", "plan", "verification", "changes", "context")}))
+        args = SimpleNamespace(resume=False, start_now=True, accepted_policy="adopted base policy", repo="upstream/project", head_repo="writer/fork",
+                               base="main", branch="continuum/new", plan=str(plan_path), title="Start implementation", run=RUN, remote="fork",
+                               source_commit=None, development_source=False, trusted_source=client.TRUSTED_SOURCE,
+                               journal=str(self.root / "new-bootstrap.json"), recovery_authority=None)
+        calls, mutations = [], []
+        def responses(path, *_args):
+            calls.append(path)
+            if path == "repos/upstream/project":
+                return {"full_name": "upstream/project", "permissions": {"push": False}}
+            if path == "repos/writer/fork":
+                return {"full_name": "writer/fork", "permissions": {"push": True}}
+            if "/git/ref/" in path:
+                return {"object": {"sha": self.base}}
+            if path.endswith("/releases/latest"):
+                return {"draft": False, "prerelease": False, "tag_name": "v0.4.0"}
+            if "/commits/" in path:
+                return {"sha": "e" * 40}
+            if "/pulls?" in path:
+                return [[]]
+            raise AssertionError("unexpected remote API " + path)
+        original_git, original_run = client.git, subprocess.run
+        def local_fetch(*argv):
+            if argv[0] == "fetch":
+                argv = (*argv[:2], str(base_transport), *argv[3:])
+            return original_git(*argv)
+        def create(argv, **kwargs):
+            if argv[0] == "gh":
+                payload = json.loads(kwargs["input"])
+                mutations.append(payload)
+                self.body, self.value = payload["body"], c.read_contract(payload["body"])
+                return subprocess.CompletedProcess(argv, 0, stdout=json.dumps({"html_url": self.url}), stderr="")
+            return original_run(argv, **kwargs)
+        self.draft, self.events = True, []
+        with patch.object(client, "api", side_effect=responses), patch.object(client, "fetch_protocol") as pin, \
+             patch.object(client, "parent_guard"), patch.object(client, "git", side_effect=local_fetch), \
+             patch.object(client.subprocess, "run", side_effect=create):
+            client.bootstrap(args)
+        self.assertEqual(calls.count("repos/Leftium/continuum/releases/latest"), 1)
+        self.assertTrue(all(call.args[0]["commit"] == "e" * 40 for call in pin.call_args_list))
+        self.assertEqual(len(mutations), 1)
+        self.assertTrue(mutations[0]["draft"])
+        self.assertEqual(mutations[0]["head"], "writer:continuum/new")
+        self.assertEqual(self.g("diff", "--name-only", self.base, "HEAD"), "AGENTS.md")
+        self.assertFalse((self.repo / "CONTINUUM.md").exists())
+        self.assertFalse((self.repo / "PR-PLAN.md").exists())
+        self.assertEqual(self.g("ls-remote", str(base_transport), "refs/heads/main").split()[0], self.base)
+        self.assertTrue(client.origin_provenance(self.value))
+
+    def test_bootstrap_does_not_activate_installed_legacy_base(self):
+        args = SimpleNamespace(resume=False, start_now=True, accepted_policy="adopted", repo="upstream/project", head_repo="writer/fork",
+                               base="main", branch="continuum/fresh", plan="/outside/plan.json", title="Start", run=RUN, remote="fork")
+        def responses(path):
+            return {"object": {"sha": self.base}} if "/git/ref/" in path else {"full_name": path[6:], "permissions": {"push": True}}
+        with patch.object(client, "remote_sha", return_value=None), patch.object(client, "api", side_effect=responses), \
+             patch.object(client, "parent_guard"), patch.object(client, "remote_agents", return_value=b"<!-- leftium:continuum:start -->"):
+            with self.assertRaisesRegex(c.Invalid, "still installed 0.3"):
+                client.bootstrap(args)
+        self.assertEqual(self.g("branch", "--show-current"), "continuum/test")
+
+    def test_cleanup_preserves_staged_user_work(self):
+        (self.repo / "product.txt").write_text("staged user change\n")
+        self.g("add", "product.txt")
+        before = self.g("diff", "--staged")
+        with self.assertRaises(c.Invalid):
+            client.cleanup(self.args)
+        self.assertEqual(self.g("diff", "--staged"), before)
+        self.assertTrue((self.repo / "AGENTS.md").exists())
+
+    def test_ignored_local_agents_cannot_hide_stale_state_from_no_op(self):
+        client.cleanup(self.args)
+        self.new_ready_cycle()
+        (self.repo / ".git/info/exclude").write_text("AGENTS.md\n")
+        local = b"Private untracked instructions\n" + c.render_pointer(c.pointer_data(self.value))
+        (self.repo / "AGENTS.md").write_bytes(local)
+        self.assertEqual(self.g("status", "--porcelain"), "")
+        with self.assertRaises(c.Invalid):
+            client.cleanup(self.args)
+        self.assertEqual((self.repo / "AGENTS.md").read_bytes(), local)
+        self.assertIsNone(c.replay(self.events).active)
+
+    def test_target_identity_change_stops_every_phase(self):
+        pr = self.pr()
+        pr["base"]["ref"] = "other"
+        with self.assertRaises(c.Invalid):
+            client.live_tuple(pr, self.value)
+        pr = self.pr()
+        pr["head"]["repo"]["full_name"] = "another/fork"
+        with self.assertRaises(c.Invalid):
+            client.live_tuple(pr, self.value)
+
+    def test_failed_cleanup_then_remote_advancement_never_overwrites(self):
+        with patch.object(client, "push", side_effect=c.Invalid("offline")):
+            with self.assertRaises(c.Invalid):
+                client.cleanup(self.args)
+        local = self.g("rev-parse", "HEAD")
+        actual_pr = self.pr
+        def advanced():
+            pr = actual_pr()
+            pr["head"]["sha"] = "f" * 40
+            return pr
+        with patch.object(self, "pr", advanced), patch.object(client, "push", side_effect=AssertionError("must not overwrite")):
+            with self.assertRaises(c.Invalid):
+                client.cleanup(self.args)
+        self.assertEqual(self.g("rev-parse", "HEAD"), local)
+        self.assertEqual(c.replay(self.events).active["kind"], "cleanup")
+
 
 class AdapterTests(unittest.TestCase):
+    def test_deferred_planning_never_starts_a_branch(self):
+        args = SimpleNamespace(resume=False, start_now=False)
+        with patch.object(client, "git") as call:
+            with self.assertRaises(c.Invalid):
+                client.bootstrap(args)
+            call.assert_not_called()
     def test_source_trust_and_no_mutable_fallback(self):
         source = contract()["source"]
         with patch.object(client, "gh", return_value="---\ncontinuum: 0.4.0\nartifact: protocol/CONTINUUM.md\n---\n") as mock:

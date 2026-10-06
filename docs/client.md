@@ -122,6 +122,10 @@ The plan always remains in the body.
 retains ownership. No unrelated writes while suspended. Resume the SAME run
 with `--action resume` and `{"acceptance":"Approval or explicit reconciliation"}`.
 Repair ownership still requires repair completion before implementation.
+For invalid metadata, resume compares the repair's accepted raw snapshot and
+head/target binding without requiring the damaged digest to validate first.
+If suspension preceded entering repair mode, include `raw_digest` for the exact
+accepted section in resume details, then run bounded repair before implementation.
 
 Target/head changes stop EVERY phase. Use `--action cleanup_cancel` with a reason
 before implementation acquisition, or recover a terminated cleanup owner. Return
@@ -168,6 +172,8 @@ applies it, rerun the same arguments with `--complete` instead of `--apply`.
 The exact replacement contract and live tuple must match. Never ask a human to
 guess a digest. Changed snapshots/interrupted claims require reconciliation.
 Offline `contract repair` with the same snapshot arguments prepares text only.
+Revision rollback or a recomputed digest at an already-recorded revision also
+requires repair/reconciliation; a syntactically valid hash cannot bypass history.
 
 ## Cleanup and verification
 

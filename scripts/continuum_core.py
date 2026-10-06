@@ -161,7 +161,13 @@ def section(text, start=CONTRACT_START, end=CONTRACT_END):
 
 def render(contract):
     validate_contract(contract)
-    return CONTRACT_START + "\n```json\n" + json.dumps(contract, indent=2, ensure_ascii=True, sort_keys=True) + "\n```\n" + CONTRACT_END
+    return CONTRACT_START + "\n```json\n" + pretty(contract) + "\n```\n" + CONTRACT_END
+
+
+def pretty(value):
+    # A plan may discuss the delimiters themselves. Escape '<' in presentation
+    # JSON so string values cannot impersonate framing; the digest is unchanged.
+    return json.dumps(value, indent=2, ensure_ascii=True, sort_keys=True).replace("<", "\\u003c")
 
 
 def read_contract(body):
@@ -260,7 +266,7 @@ def validate_tuple(value):
 
 def event_text(event):
     validate_event(event)
-    return EVENT_START + "\n```json\n" + json.dumps(event, indent=2, sort_keys=True, ensure_ascii=True) + "\n```\n" + EVENT_END
+    return EVENT_START + "\n```json\n" + pretty(event) + "\n```\n" + EVENT_END
 
 
 ACTIONS = {"claim", "checkpoint", "suspend", "resume", "repair_enter", "repair_complete", "release", "recover", "verify", "ready", "review", "revalidate", "cleanup_complete", "cleanup_cancel"}
@@ -272,6 +278,7 @@ def validate_event(event):
     require(event["schema"] == "continuum-event/0.4" and IDENTIFIER.fullmatch(event["id"]) and IDENTIFIER.fullmatch(event["run"]), "invalid event/run identity")
     require(isinstance(event["actor"], str) and re.fullmatch(r"[A-Za-z0-9-]+(?:\[bot\])?", event["actor"]), "invalid actor")
     require(isinstance(event["prev"], list) and len(set(event["prev"])) == len(event["prev"]) and all(IDENTIFIER.fullmatch(i) for i in event["prev"]), "invalid event predecessor frontier")
+    require(event["prev"] == sorted(event["prev"]), "event predecessor frontier must be sorted")
     require(event["action"] in ACTIONS and event["kind"] in ("write", "repair", "cleanup", "evidence", "recovery"), "unknown event")
     kinds = {"claim": ("write", "repair", "cleanup"), "checkpoint": ("write",), "suspend": ("write", "repair", "cleanup"),
              "resume": ("write", "repair", "cleanup"), "repair_enter": ("write",), "repair_complete": ("write", "repair"),
@@ -279,6 +286,12 @@ def validate_event(event):
     require(event["kind"] in kinds.get(event["action"], ("evidence",)), "action/kind mismatch")
     require(event["subject"] is None or IDENTIFIER.fullmatch(event["subject"]), "invalid claim subject")
     require(isinstance(event["details"], dict), "invalid event details")
+    required_detail = ("acceptance" if event["action"] in ("claim", "verify", "ready", "review", "revalidate", "resume") else
+                       "reason" if event["action"] in ("suspend", "cleanup_cancel") else
+                       "human_confirmation" if event["action"] == "recover" else None)
+    if required_detail:
+        value = event["details"].get(required_detail)
+        require(isinstance(value, str) and value.strip(), "event needs a nonempty " + required_detail + " reference")
     if event["kind"] == "repair" or event["action"] == "repair_enter":
         details = event["details"]
         if event["action"] in ("claim", "repair_enter"):
@@ -288,7 +301,7 @@ def validate_event(event):
             require(details["snapshot"]["revision"] == details["last_revision"] + 1, "repair replacement must follow trusted revision")
     if event["tuple"] is not None:
         validate_tuple(event["tuple"])
-    require(event["tuple"] is not None or event["kind"] in ("repair", "recovery") or event["action"] in ("repair_enter", "suspend", "release"), "event tuple required")
+    require(event["tuple"] is not None or event["kind"] in ("repair", "recovery") or event["action"] in ("repair_enter", "suspend", "resume", "release"), "event tuple required")
 
 
 @dataclass
@@ -373,7 +386,8 @@ def replay(events):
             elif action == "resume":
                 require(state.mode == "suspended" and event["details"].get("acceptance"), "resume needs approval/reconciliation")
                 state.mode = state.resume_mode
-                state.active = {**state.active, "tuple": event["tuple"]}
+                if event["tuple"] is not None:
+                    state.active = {**state.active, "tuple": event["tuple"]}
             elif action == "repair_enter":
                 require(kind == "write" and state.mode != "suspended", "repair mode requires writer")
                 state.mode = "repair"

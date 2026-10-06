@@ -3,7 +3,6 @@
 
 import argparse
 import base64
-import copy
 import json
 import os
 from pathlib import Path
@@ -91,7 +90,17 @@ def snapshot(url, trusted=TRUSTED_SOURCE, allow_invalid=False):
         c.validate_contract(contract)
     fetch_protocol(contract["source"], trusted)
     events = comments(url, pr)
-    return pr, contract, events, c.replay(events)
+    state = c.replay(events)
+    if not allow_invalid:
+        validate_current(contract, state, events)
+    return pr, contract, events, state
+
+
+def validate_current(contract, state, events):
+    c.validate_contract(contract)
+    c.require(contract["revision"] >= state.last_revision, "contract revision rolled back behind durable history; repair required")
+    accepted = [e["tuple"] for e in events if e["tuple"] and e["tuple"]["revision"] == contract["revision"]]
+    c.require(not accepted or accepted[-1]["digest"] == contract["digest"], "same revision has changed digest; reconcile/repair required")
 
 
 def actor():
@@ -123,6 +132,12 @@ def assert_owner(state, run, kinds=("write",), mode="active"):
 
 def clean_worktree():
     c.require(not git("status", "--porcelain"), "preserve staged/unstaged/untracked work; use a clean workspace")
+
+
+def working_agents():
+    path = Path("AGENTS.md")
+    c.require(not path.is_symlink() and (not path.exists() or path.is_file()), "AGENTS.md must be a regular file")
+    return path.read_bytes() if path.exists() else None
 
 
 def remote_repository(url):
@@ -224,7 +239,7 @@ def status(args):
 
 
 def record(args):
-    pr, contract, events, state = snapshot(args.pr, args.trusted_source, allow_invalid=args.action in ("suspend", "recover", "cleanup_cancel"))
+    pr, contract, events, state = snapshot(args.pr, args.trusted_source, allow_invalid=args.action in ("suspend", "resume", "recover", "cleanup_cancel"))
     details = c.loads(Path(args.details).read_text()) if args.details else {}
     action = args.action
     if action == "recover":
@@ -235,7 +250,22 @@ def record(args):
         value, kind, owner = None, state.active["kind"], state.active["id"]
     else:
         c.require(pr["state"] == "open", "no writes/progression on closed PR")
-        value = live_tuple(pr, contract, reconcile=action == "resume" and bool(details.get("acceptance")))
+        try:
+            validate_current(contract, state, events)
+            invalid = False
+        except c.Invalid:
+            invalid = True
+        if action == "resume" and (invalid or state.repair):
+            assert_owner(state, args.run, ("write", "repair"), "suspended")
+            raw_digest = c.sha256(c.section(pr["body"])[2].encode("utf-8"))
+            expected = state.repair["snapshot"] if state.repair else state.active["tuple"]
+            c.require(raw_digest == (state.repair["raw_digest"] if state.repair else details.get("raw_digest")), "invalid-metadata resume requires accepted unchanged raw snapshot")
+            effective = {**contract, "revision": expected["revision"], "digest": expected["digest"]}
+            c.require(live_tuple(pr, effective) == expected, "repair resume head/target changed; explicit recovery required")
+            value = None
+        else:
+            validate_current(contract, state, events)
+            value = live_tuple(pr, contract, reconcile=action == "resume" and bool(details.get("acceptance")))
         kind, owner = "evidence", None
         if action == "claim":
             c.require(pr["draft"] and not state.conflict and state.active is None and details.get("acceptance"), "write acquisition requires unclaimed Draft and accepted policy/blockers")
@@ -248,7 +278,7 @@ def record(args):
             c.require(args.run not in last_writers, "review run must be independent of implementation")
         else:
             assert_owner(state, args.run, ("write", "repair") if action == "resume" else ("write",), mode=None if action == "resume" else "active")
-            c.require(pr["draft"], "implementation progression requires Draft; suspend if state changed")
+            c.require(pr["draft"] or (action == "resume" and state.active["kind"] == "repair"), "implementation progression requires Draft; suspend if state changed")
             if action == "resume":
                 c.require(state.mode == "suspended" and details.get("acceptance"), "resume needs explicit approval/reconciliation")
             owner = state.active["id"]
@@ -305,6 +335,7 @@ def edit(args):
 
 
 def repair(args):
+    outside_path(args.output)
     pr, candidate, events, state = snapshot(args.pr, args.trusted_source, allow_invalid=True)
     c.require(pr["state"] == "open" and not state.conflict, "repair requires open PR and uncontested ownership")
     if args.complete:
@@ -321,7 +352,7 @@ def repair(args):
         return
     raw = c.section(pr["body"])[2]
     try:
-        c.validate_contract(candidate)
+        validate_current(candidate, state, events)
     except c.Invalid:
         pass
     else:
@@ -343,7 +374,7 @@ def repair(args):
         else:
             origin = next(e for e in reversed(events) if e["action"] in ("claim", "repair_enter") and e["details"].get("raw_digest"))
             c.require(origin["details"] == details, "repair snapshot changed; explicit recovery/new acceptance required")
-    Path(args.output).write_text(body, encoding="utf-8")
+    Path(args.output).write_bytes(body.encode("utf-8"))
     if not args.apply:
         print("Exact replacement saved; repair claim retained. Authorized human must apply this complete body, then rerun with --complete to validate/release.")
         return
@@ -370,8 +401,8 @@ def pointer_sync(args):
     branch_context(contract, current["head_sha"])
     origin_provenance(contract)
     path = Path("AGENTS.md")
-    c.require(not path.is_symlink(), "AGENTS.md symlink is unsafe")
-    original = path.read_bytes() if path.exists() else None
+    original = working_agents()
+    c.require(original == blob(current["head_sha"]), "untracked/filtered AGENTS.md content; preserve it and hand off")
     if original is not None and b"<!-- continuum:pointer" in original:
         left, right, _, meta = c.read_pointer(original)
         c.require(meta["id"] == contract["bootstrap"]["id"] and meta["run"] == contract["bootstrap"]["run"]
@@ -402,6 +433,7 @@ def cleanup(args):
     destination = push_url(args.remote, contract["head"])
     clean_worktree()
     c.require(git("branch", "--show-current") == contract["head"]["ref"], "cleanup must use exact head branch")
+    c.require(working_agents() == blob(git("rev-parse", "HEAD")), "untracked/filtered AGENTS.md content; preserve it and hand off")
     origin_provenance(contract)
     if state.active is None:
         c.cleanup_gate(state, current, pr["state"] == "open", pr["draft"])
@@ -501,10 +533,15 @@ def parent_guard(repository, ref):
         cursor = connection["pageInfo"]["endCursor"]
 
 
-def journal_write(path, data, initial=False):
+def outside_path(path):
     path = Path(path).resolve()
     root = Path(git("rev-parse", "--show-toplevel")).resolve()
-    c.require(root not in path.parents and path != root, "bootstrap journal must be outside target worktree")
+    c.require(root not in path.parents and path != root, "journal/repair handoff must be outside target worktree")
+    return path
+
+
+def journal_write(path, data, initial=False):
+    path = outside_path(path)
     if initial:
         with path.open("x", encoding="utf-8") as output:
             os.chmod(path, 0o600)
@@ -532,6 +569,10 @@ def bootstrap(args):
     c.require(args.start_now and args.accepted_policy and args.repo and args.head_repo and args.base and args.plan and args.title, "bootstrap requires implementation-now adoption, accepted base policy, repo/head/base, title and complete plan")
     clean_worktree()
     run, bootstrap_id = args.run or c.new_id(), c.new_id()
+    c.require(c.REPOSITORY.fullmatch(args.repo) and c.REPOSITORY.fullmatch(args.head_repo), "invalid base/head repository")
+    base_repository = api(f"repos/{args.repo}")
+    head_repository = api(f"repos/{args.head_repo}")
+    args.repo, args.head_repo = base_repository["full_name"], head_repository["full_name"]
     head = {"host": "github.com", "repository": args.head_repo, "ref": args.branch or "continuum/" + bootstrap_id}
     c._identity(head)
     destination = push_url(args.remote, head)
@@ -543,9 +584,10 @@ def bootstrap(args):
     base_agents = remote_agents(args.repo, base_sha)
     c.require(b"<!-- continuum:pointer" not in (base_agents or b""), "selected base has stale/parent pointer")
     c.require(b"<!-- leftium:continuum:start -->" not in (base_agents or b""), "selected base is still installed 0.3; follow migration gate/drain before 0.4 adoption")
-    c.require(api(f"repos/{args.head_repo}")["permissions"]["push"], "cannot push to authorized head repository")
+    c.require(head_repository.get("permissions", {}).get("push"), "cannot push to authorized head repository")
     login = actor()
-    c.require(login.lower() == args.head_repo.split("/")[0].lower() or api(f"repos/{args.repo}").get("permissions", {}).get("push"), "PR-body edit capability uncertain; use an authorized human/client")
+    # Creation makes this authenticated account the PR author, who can edit its
+    # own body. Do not require upstream push permission or personal fork ownership.
     if args.source_commit:
         c.require(args.development_source, "explicit source commit requires --development-source; stable discovery is the default")
         source_commit = args.source_commit
@@ -562,12 +604,13 @@ def bootstrap(args):
     pointer = c.render_pointer(c.pointer_data(contract))
     contract["bootstrap"]["pointer_digest"] = c.sha256(pointer)
     c.seal(contract)
-    journal = {"run": run, "remote": args.remote, "title": args.title, "accepted_policy": args.accepted_policy, "contract": contract, "commit": None}
+    journal = {"run": run, "actor": login, "remote": args.remote, "title": args.title, "accepted_policy": args.accepted_policy, "contract": contract, "commit": None}
     journal_write(args.journal, journal, initial=True)
     git("fetch", "--no-tags", "https://github.com/" + args.repo + ".git", "refs/heads/" + args.base)
     c.require(git("rev-parse", "FETCH_HEAD") == base_sha, "base advanced before bootstrap; preserve journal and start only after reconciliation")
-    git("switch", "-c", head["ref"], base_sha)
+    git("switch", "--no-overwrite-ignore", "-c", head["ref"], base_sha)
     c.require(blob(base_sha) == base_agents, "base policy retrieval mismatch")
+    c.require(working_agents() == base_agents, "ignored/untracked or filtered AGENTS.md; preserve it and recover bootstrap explicitly")
     Path("AGENTS.md").write_bytes(c.append_pointer(base_agents, c.pointer_data(contract)))
     git("add", "--", "AGENTS.md")
     git("commit", "-m", "chore: bootstrap Continuum PR discovery")
@@ -612,7 +655,13 @@ def finish_bootstrap(args, journal):
     pr, found, _, state = snapshot(url, args.trusted_source)
     c.require(pr["state"] == "open" and pr["draft"] and found == contract and live_tuple(pr, found)["head_sha"] == journal["commit"] and not state.active and not state.conflict, "existing PR does not match bootstrap identity/state; explicit recovery required")
     c.require(pr["checked_base_sha"] == contract["target"]["sha"], "base advanced during bootstrap; revalidate policy and use explicit recovery")
+    c.require(pr["user"]["login"] == journal["actor"] or args.recovery_authority, "bootstrap PR author changed; explicit human ownership acceptance required")
     journal["pr"] = url
+    if args.recovery_authority:
+        journal["recovery_authority"] = args.recovery_authority
+        api(f"repos/{repository}/issues/{pr_identity(url)[1]}/comments", "--method", "POST", "-f",
+            "body=Bootstrap recovery accepted: " + args.recovery_authority + "\nBootstrap: " + contract["bootstrap"]["id"]
+            + "\nNo implementation lease acquired.")
     journal_write(args.journal, journal)
     print(url + "\nBootstrap complete. Acquire a normal write lease before any implementation/body write.\nRun: " + journal["run"])
 
@@ -620,7 +669,7 @@ def finish_bootstrap(args, journal):
 def offline(args):
     if args.operation == "seal":
         contract = c.seal(c.loads(Path(args.input).read_text()), args.revision)
-        Path(args.output).write_text(c.render(contract) + "\n", encoding="utf-8")
+        Path(args.output).write_bytes((c.render(contract) + "\n").encode("utf-8"))
     elif args.operation == "validate":
         body = Path(args.body).read_bytes().decode("utf-8")
         print(json.dumps(c.read_contract(body), indent=2))
@@ -630,7 +679,7 @@ def offline(args):
     elif args.operation == "repair":
         body = Path(args.body).read_bytes().decode("utf-8")
         repaired, _ = c.repair_contract(body, args.accepted_raw, args.last_revision)
-        Path(args.output).write_text(repaired, encoding="utf-8")
+        Path(args.output).write_bytes(repaired.encode("utf-8"))
 
 
 def parser():
@@ -681,6 +730,7 @@ def parser():
 def main():
     args = parser().parse_args()
     try:
+        c.require(sys.version_info >= (3, 9), "Python 3.9+ required")
         args.function(args)
     except (c.Invalid, OSError, ValueError, TypeError, KeyError, subprocess.SubprocessError) as error:
         print("STOP: " + str(error), file=sys.stderr)

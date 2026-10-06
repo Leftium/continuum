@@ -61,7 +61,10 @@ Exactly one controlled section appears in the PR body, framed with literal LF:
 The delimiters and fence occupy separate lines. JSON whitespace is immaterial
 to the contract digest. Other description bytes MUST be preserved on replacement.
 Duplicate, malformed, unknown-version or reversed delimiters and duplicate JSON
-keys are invalid. The current section has exactly these fields:
+keys are invalid. Literal delimiters are reserved in the surrounding description.
+When JSON string values discuss delimiters, encode their `<` as `\u003c` so they
+cannot impersonate framing; this presentation escape does not change normalization.
+The current section has exactly these fields:
 
 | Field | Meaning |
 | --- | --- |
@@ -115,6 +118,12 @@ logged with their predecessor and acceptance references. Humans may edit at any
 time; unexpected changes stop the writer. A client unable to edit the body
 supplies the complete computed replacement to an authorized human, then checks
 the result. Neither timestamps nor GitHub edit retention replace revision checks.
+
+Compare metadata with trusted event history too: revision cannot roll back below
+the last valid recorded revision, and a recorded revision cannot name a different
+digest. These are repair/reconciliation conditions even if the JSON digest
+recomputes successfully. A crash after a valid owned body edit but before its
+checkpoint may leave a higher revision; explicitly reconcile/log that update.
 
 ## Temporary AGENTS.md pointer
 
@@ -188,7 +197,7 @@ invalidates affected evidence. Labels and PR timestamps have no authority.
 | `claim` / `write` | Open Draft, valid contract, expected shared HEAD, no claims, policy/blockers accepted. Owns branch AND controlled body. `details.acceptance` references adoption/policy/blocker checks. |
 | `checkpoint` / `write` | Active owner; coherent verified commit pushed or valid body update. Update expected tuple; retain lease and continue. Log changes/reconciliation in details. |
 | `suspend` / held kind | Owner records `details.reason`; retains claim, no unrelated writes. Allowed when metadata/target/head becomes invalid or PR closes. |
-| `resume` / held kind | Same run, explicit `details.acceptance` of approval/reconciliation; recheck open context, tuple and policy. Repair claims return to repair mode. |
+| `resume` / held kind | Same run, explicit `details.acceptance` of approval/reconciliation; recheck open context, tuple and policy. A suspended repair returns to repair mode, including when held by a writer. Invalid metadata may use null tuple only after checking the accepted raw snapshot and trusted head/target binding. |
 | `verify`, `ready` / `evidence` | Active implementation owner. `details.acceptance` references actual checks/knowledge promotion; Ready requires current verification tuple. |
 | `release` / `write` or `repair` | Active owner, coherent shared state, no pending repair/suspension. End ownership; incomplete work remains Draft. |
 | `review` / `evidence` | Unleased Ready with current Ready evidence; independent logical run, `details.independent_review:true` and `acceptance` linking the clean review/checks. |
