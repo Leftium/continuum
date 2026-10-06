@@ -562,9 +562,11 @@ class GitIntegrationTests(unittest.TestCase):
     def test_bootstrap_existing_pr_is_verified_without_duplicate_creation(self):
         args, journal = self.bootstrap_journal()
         response = {**self.pr(), "html_url": self.url}
-        with patch.object(client, "fetch_protocol"), patch.object(client, "api", return_value=[[response]]) as call:
+        with patch.object(client, "fetch_protocol"), patch.object(client, "api", return_value=[[response]]) as call, \
+             patch.object(client, "bootstrap_labels") as labels:
             client.finish_bootstrap(args, journal)
         self.assertEqual(call.call_count, 1)
+        labels.assert_called_once_with(args, journal)
         self.assertEqual(self.g("rev-parse", "HEAD"), self.boot)
         self.assertEqual(json.loads(Path(args.journal).read_text())["pr"], self.url)
 
@@ -585,11 +587,13 @@ class GitIntegrationTests(unittest.TestCase):
                 mutations.append(json.loads(kwargs["input"]))
                 return subprocess.CompletedProcess(argv, 1, stdout="", stderr="response lost")
             return original_run(argv, **kwargs)
-        with patch.object(client, "fetch_protocol"), patch.object(client, "api", side_effect=responses), patch.object(client.subprocess, "run", side_effect=uncertain):
+        with patch.object(client, "fetch_protocol"), patch.object(client, "api", side_effect=responses), \
+             patch.object(client.subprocess, "run", side_effect=uncertain), patch.object(client, "bootstrap_labels") as labels:
             with self.assertRaises(c.Invalid):
                 client.finish_bootstrap(args, journal)
             client.finish_bootstrap(args, journal)
         self.assertEqual(len(mutations), 1)
+        labels.assert_called_once_with(args, journal)
         self.assertTrue(mutations[0]["draft"])
         self.assertEqual(mutations[0]["head_repo"], "fork")
         self.assertEqual(mutations[0]["head"], "writer:continuum/test")
@@ -617,6 +621,12 @@ class GitIntegrationTests(unittest.TestCase):
             calls.append(path)
             if path == "repos/upstream/project":
                 return {"full_name": "upstream/project", "permissions": {"push": False}}
+            if "/labels?" in path:
+                return [[{"name": "continuum"}]]
+            if path == "repos/upstream/project/pulls/1":
+                return {"state": "open", "labels": []}
+            if path == "repos/upstream/project/issues/1/labels":
+                return [{"name": "continuum"}]
             if path == "repos/writer/fork":
                 return {"full_name": "writer/fork", "permissions": {"push": True}}
             if "/git/ref/" in path:

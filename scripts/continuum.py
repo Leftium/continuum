@@ -15,6 +15,8 @@ from urllib.parse import quote
 import continuum_core as c
 
 TRUSTED_SOURCE = "Leftium/continuum"
+LABEL = "continuum"
+LABEL_ERRORS = (c.Invalid, OSError, ValueError, TypeError, KeyError, subprocess.SubprocessError)
 
 
 def command(*args, check=True):
@@ -558,6 +560,106 @@ def journal_write(path, data, initial=False):
         os.replace(temporary, path)
 
 
+def label_exists(repository):
+    pages = api(f"repos/{repository}/labels?per_page=100", "--paginate", "--slurp")
+    return any(item["name"].lower() == LABEL for page in pages for item in page)
+
+
+def label_notice(message):
+    print("Label: " + message, file=sys.stderr)
+
+
+def label_choice(args, journal, key, option, accepted, question):
+    if key not in journal:
+        choice = getattr(args, key, None)
+        if choice is None:
+            if sys.stdin.isatty():
+                try:
+                    choice = accepted if input(question + " [y/N] ").strip().lower() in ("y", "yes") else "skip"
+                except EOFError:
+                    choice = "skip"
+            else:
+                choice = "skip"
+                label_notice(f"noninteractive default: skip; use {option} {accepted} to opt in")
+        journal[key] = choice
+        # Persist consent before a potentially ambiguous network mutation.
+        journal_write(args.journal, journal)
+    return journal[key] == accepted
+
+
+def add_pr_label(repository, number, canonical=False):
+    pr = api(f"repos/{repository}/pulls/{number}")
+    if pr["state"] != "open" or pr.get("merged_at") or (canonical and not label_candidate(pr)):
+        return False
+    if any(item["name"].lower() == LABEL for item in pr["labels"]):
+        return False
+    # POST adds labels. PUT would replace the full set and lose unrelated labels.
+    labels = api(f"repos/{repository}/issues/{number}/labels", "--method", "POST", "-f", "labels[]=continuum")
+    c.require(any(item["name"].lower() == LABEL for item in labels), "label addition was not confirmed")
+    print(f"Labeled https://github.com/{repository}/pull/{number}")
+    return True
+
+
+def label_candidate(pr):
+    try:
+        return c.section(pr.get("body") or "")[3].get("schema") == "continuum/0.4"
+    except (c.Invalid, AttributeError):
+        return False
+
+
+def sync_pr_labels(repository):
+    pages = api(f"repos/{repository}/pulls?state=open&per_page=100", "--paginate", "--slurp")
+    changed, failed, seen = 0, 0, set()
+    for pr in (pr for page in pages for pr in page):
+        if pr["number"] in seen or not label_candidate(pr):
+            continue
+        seen.add(pr["number"])
+        try:
+            changed += add_pr_label(repository, pr["number"], canonical=True)
+        except LABEL_ERRORS as error:
+            failed += 1
+            label_notice(f"PR #{pr['number']} failed or uncertain: {error}")
+    print(f"Label sync: {changed} confirmed additions; {failed} failed or uncertain.")
+    return failed
+
+
+def label_sync(args):
+    c.require(c.REPOSITORY.fullmatch(args.repo), "invalid repository")
+    c.require(label_exists(args.repo), "continuum label is missing; create it with explicit authorization before sync")
+    c.require(sync_pr_labels(args.repo) == 0, "label sync had partial failures; see reported PRs and retry")
+
+
+def bootstrap_labels(args, journal):
+    repository, number = pr_identity(journal["pr"])
+    try:
+        exists = label_exists(repository)
+        if not exists:
+            permissions = api(f"repos/{repository}").get("permissions", {})
+            if not any(permissions.get(key) for key in ("push", "maintain", "admin")):
+                label_notice("creation permission unavailable; skipping optional labeling")
+                return
+            if not label_choice(args, journal, "label", "--label", "create",
+                                "This repository does not have a continuum label. Create it so Continuum PRs are easy to find?"):
+                label_notice("creation skipped; bootstrap remains complete")
+                return
+            result = api(f"repos/{repository}/labels", "--method", "POST", "-f", "name=continuum",
+                         "-f", "color=5319E7", "-f", "description=Continuum PR discovery (no workflow authority)")
+            c.require(result["name"].lower() == LABEL, "label creation was not confirmed")
+            journal["label_created"] = True
+            journal_write(args.journal, journal)
+        try:
+            add_pr_label(repository, number)
+        except LABEL_ERRORS as error:
+            label_notice(f"current PR #{number} failed or uncertain: {error}")
+        # A saved creation request also covers a lost creation response on resume.
+        if journal.get("label_created") or journal.get("label") == "create":
+            if label_choice(args, journal, "label_backfill", "--label-backfill", "sync",
+                            "Backfill the continuum label on existing open 0.4 Continuum PRs?"):
+                sync_pr_labels(repository)
+    except LABEL_ERRORS as error:
+        label_notice(f"optional labeling failed or uncertain; bootstrap remains complete: {error}")
+
+
 def bootstrap(args):
     if args.resume:
         journal = c.loads(Path(args.journal).read_text())
@@ -664,6 +766,7 @@ def finish_bootstrap(args, journal):
             + "\nNo implementation lease acquired.")
     journal_write(args.journal, journal)
     print(url + "\nBootstrap complete. Acquire a normal write lease before any implementation/body write.\nRun: " + journal["run"])
+    bootstrap_labels(args, journal)
 
 
 def offline(args):
@@ -721,9 +824,16 @@ def parser():
     boot.add_argument("--remote", required=True)
     boot.add_argument("--journal", required=True)
     boot.add_argument("--trusted-source", default=TRUSTED_SOURCE)
+    boot.add_argument("--label", choices=("create", "skip"), help="explicit missing-label policy; interactive prompt or noninteractive skip by default")
+    boot.add_argument("--label-backfill", choices=("sync", "skip"), help="explicit backfill policy after creation; never inferred from creation consent")
     for key in ("start-now", "development-source", "resume"):
         boot.add_argument("--" + key, action="store_true")
     boot.set_defaults(function=bootstrap)
+    label = commands.add_parser("label", help="optional discovery metadata; grants no workflow authority")
+    operations = label.add_subparsers(dest="operation", required=True)
+    sync = operations.add_parser("sync", help="add an existing label to open canonical 0.4 PRs")
+    sync.add_argument("--repo", required=True)
+    sync.set_defaults(function=label_sync)
     return root
 
 
