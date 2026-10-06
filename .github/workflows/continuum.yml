@@ -14,5 +14,5 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Validate Continuum metadata
+      - name: Check retained 0.3 workflow and canonical 0.4 source/client
         run: bash scripts/check-continuum.sh

@@ -1,31 +1,35 @@
 # PR Plan
 
 Issue: #14
+Accepted design: `specs/002-pr-local-redesign.md` at `e55c8da75fe826656c2f3263497d0ac2211000e5`.
+Clean design review: https://github.com/Leftium/continuum/pull/15#issuecomment-6021590514
 
 ## Goal
 
-Close the two remaining recovery gaps in the PR-native Continuum 0.4 design: repair of human-edited invalid contract metadata, and cleanup verification when a post-cleanup fix cycle intentionally leaves the optional AGENTS pointer absent.
+Implement the accepted PR-native Continuum 0.4 architecture with an interoperable normative protocol and dependency-free reference tooling.
 
 ## Scope
 
-- Keep PR #15 governed by Continuum 0.3; do not self-migrate it implicitly.
-- Preserve the current PR-native architecture.
-- Add an exclusive contract-repair transition for invalid revision/digest metadata, including held-lease and unleased cases.
-- Ensure repair accepts an exact authorized raw snapshot, restores valid metadata, preserves unrelated PR content, and blocks implementation until validation succeeds.
-- Add verified no-op cleanup that separates historical pointer-removal provenance from current readiness/review evidence.
-- Preserve fail-closed handling for genuinely unexplained pointer absence.
-- Make the designated final migration PR's exemption from the 0.3 admission gate explicit.
-- Do not implement normative 0.4 until another independent design review is clean.
+- Keep this PR under the existing 0.3 protocol, lease, and finalizer; no implicit self-migration.
+- Add `protocol/CONTINUUM.md` and define canonical JSON contract digests, raw repair snapshots, UUID IDs, pointer bytes/provenance, and comment-event state transitions.
+- Implement offline validation/repair/pointer primitives and a Git/GitHub CLI for bootstrap, status/validation, cooperative claims/events, and removal/no-op cleanup.
+- Add focused fixtures and tests for wire interoperability, failed/concurrent state changes, surgical pointer handling, stale contexts, repair, cleanup, forks, and migration barriers.
+- Update self-checks, CI, and user docs while retaining the operational 0.3 installation.
+- Do not perform repository migration or publish/tag a release: the documented stable-0.4 prerequisite is not satisfied.
+
+## Checkpoints
+
+1. Normative protocol, schema/pointer/event primitives, and interoperable fixtures.
+2. Git/GitHub orchestration, focused workflow tests, and documentation.
+3. Full required checks and implementation review; release the 0.3 lease and mark Ready.
+
+Checkpoints are durable savepoints within this writing run, not default handoffs.
 
 ## Verify
 
-- A human can edit the canonical plan without manually calculating protocol metadata; the next client has an executable repair path.
-- An invalid digest cannot be bypassed by normal lease acquisition, cleanup, or implementation writes.
-- Repair ownership is exclusive and recoverable if its run terminates.
-- A second Ready cycle after pointer cleanup can complete cleanup without restoring/removing the pointer again.
-- No-op cleanup proves historical authorized removal while validating the new current tuple independently.
-- Unexplained pointer absence still stops for human recovery.
-- The final migration PR is the sole recorded exception to the no-new-0.3 gate.
-- Acceptance scenarios cover unleased/held invalid-digest repair and pointer-free second Ready cleanup.
-- No normative 0.4 implementation, tests, releases/tags, or actual 0.4 pointer changes occur in this design checkpoint.
-- Before eventual merge, accepted durable design knowledge is promoted to final normative/docs locations and this temporary 0.3 `PR-PLAN.md` is removed under 0.3 cleanup.
+- Run the existing `bash scripts/check-continuum.sh` including legacy finalizer coverage.
+- Run standard-library unit/integration tests against canonical fixtures and temporary Git repositories/fake GitHub adapters; use no live mutation tests.
+- Exercise CLI help, validation, contract repair, pointer cleanup, and no-op cleanup.
+- Review staged and unstaged diffs, documentation/source consistency, and safe Git destinations before each non-force checkpoint push.
+- Preserve the accepted design as rationale; normative rules belong in `protocol/CONTINUUM.md`.
+- Release the lease and mark Ready when complete. Do not merge or remove this temporary 0.3 plan until independent review and authorized finalization.

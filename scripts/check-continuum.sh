@@ -73,3 +73,7 @@ grep -Fq 'Repository-specific workflow policy belongs outside this managed block
 grep -Fq '<!-- leftium:continuum:end -->' "$agents"
 
 echo "Continuum self-check passed for protocol $root_version"
+
+# Retain installed 0.3 checks until gated migration; do not activate 0.4 here.
+python3 scripts/check-protocol.py
+python3 -m unittest discover -s tests
