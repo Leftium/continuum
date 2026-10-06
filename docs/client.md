@@ -101,6 +101,26 @@ or second bootstrap commit.
 
 ## Ownership and readiness
 
+Event comments show an action-specific Markdown summary, followed by a collapsed
+`Continuum metadata` disclosure. The summary includes a short excerpt of the
+action's acceptance reference, suspension/cancellation reason, or human recovery
+confirmation when present. Whitespace is flattened, long excerpts are shortened,
+and formatting is escaped so excerpts remain paragraphs rather than headings,
+quotes, or lists. Reference URLs may still become automatic links.
+Run IDs and contract/HEAD metadata stay inside
+the disclosure. The summary helps readers scan the history;
+the exact 0.4 event markers and fenced JSON inside the disclosure remain the
+authoritative metadata for parsing and replay. The client emits that JSON on one
+line. Older comments with multiline JSON remain compatible, and changing the
+surrounding presentation does not change the event values or lifecycle rules.
+
+Keep `details` concise: use durable comment, review, commit, or check references
+when those records contain the full evidence. For example,
+`{"acceptance":"https://github.com/owner/project/pull/42#issuecomment-123"}`
+can reference an adoption decision. Preserve all required fields and enough
+context to establish what the reference proves. The renderer preserves every
+detail value; it does not shorten evidence or turn the human summary into authority.
+
 Use the full PR URL. `status --pr <pr-url>` retrieves the exact protocol pin and
 reconstructs all comment pages without mutation. Write a details JSON file outside
 the worktree, for example:

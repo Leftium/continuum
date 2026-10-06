@@ -2,6 +2,7 @@
 
 import copy
 import hashlib
+import html
 import json
 import re
 import uuid
@@ -266,7 +267,53 @@ def validate_tuple(value):
 
 def event_text(event):
     validate_event(event)
-    return EVENT_START + "\n```json\n" + pretty(event) + "\n```\n" + EVENT_END
+    # Escape framing lookalikes in values without changing the parsed metadata.
+    metadata = canonical(event).decode("ascii").replace("<", "\\u003c")
+    return (event_summary(event) + "\n\n<details>\n<summary>Continuum metadata</summary>\n\n"
+            + EVENT_START + "\n```json\n" + metadata + "\n```\n" + EVENT_END
+            + "\n\n</details>")
+
+
+def event_summary(event):
+    """Presentation only; controlled metadata remains the replay authority."""
+    action, kind = event["action"], event["kind"]
+    if action == "claim":
+        message = {"write": "Write lease acquired", "repair": "Metadata repair lease acquired",
+                   "cleanup": "Pointer cleanup lease acquired"}[kind]
+    elif action == "cleanup_complete":
+        message = ("Pointer cleanup confirmed (already absent)" if event["details"].get("no_op") is True
+                   else "Pointer cleanup completed")
+    else:
+        message = {
+            "checkpoint": "Checkpoint saved; write lease retained",
+            "verify": "Verification recorded",
+            "ready": "Ready evidence recorded",
+            "review": "Independent review recorded",
+            "release": "Lease released",
+            "suspend": "Lease suspended; ownership retained",
+            "resume": "Lease resumed",
+            "repair_enter": "Metadata repair started; write lease retained",
+            "repair_complete": "Metadata repair completed",
+            "recover": "Human-authorized ownership recovery recorded",
+            "revalidate": "Base revalidation recorded",
+            "cleanup_cancel": "Pointer cleanup cancelled; lease ended",
+        }[action]
+    summary = f"**{message}.**"
+    key = ("reason" if action in ("suspend", "cleanup_cancel") else
+           "human_confirmation" if action == "recover" else "acceptance")
+    detail = event["details"].get(key)
+    if isinstance(detail, str) and detail.strip():
+        # Keep full evidence in metadata. Display excerpts as a paragraph,
+        # escaping formatting and framing; reference URLs may still autolink.
+        excerpt = " ".join(detail.split())
+        if len(excerpt) > 280:
+            excerpt = excerpt[:277].rsplit(" ", 1)[0] + "..."
+        excerpt = html.escape(excerpt, quote=False)
+        excerpt = re.sub(r"([\\`*_~\[\]])", r"\\\1", excerpt)
+        excerpt = re.sub(r"^([#+-])", r"\\\1", excerpt)
+        excerpt = re.sub(r"^(\d{1,9})([.)])(?=\s|$)", r"\1\\\2", excerpt)
+        summary += "\n\n" + excerpt
+    return summary
 
 
 ACTIONS = {"claim", "checkpoint", "suspend", "resume", "repair_enter", "repair_complete", "release", "recover", "verify", "ready", "review", "revalidate", "cleanup_complete", "cleanup_cancel"}
