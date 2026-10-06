@@ -1,0 +1,19 @@
+/* Center the 300px navigation + 800px article as one 1100px shell once
+   the Read the Docs theme reaches its wide-layout breakpoint. */
+@media screen and (min-width: 1100px) {
+  .wy-nav-side,
+  .rst-versions {
+    left: calc(50vw - 550px);
+  }
+
+  .wy-nav-content-wrap {
+    margin-left: calc(50vw - 250px);
+    margin-right: calc(50vw - 550px);
+    border-right: 1px solid #e1e4e5;
+  }
+
+  .wy-nav-content {
+    margin-left: auto;
+    margin-right: auto;
+  }
+}

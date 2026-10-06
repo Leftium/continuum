@@ -13,6 +13,13 @@ Python 3.9+, Git and authenticated `gh`; other clients can perform the same
 transactions. Stable bootstrap resolves the supported release to an exact source
 commit and retains that pin in the PR contract.
 
+The public documentation/bootstrap entry point is configured for
+[leftium.github.io/continuum](https://leftium.github.io/continuum/), available
+after Pages setup and the first authorized deployment. Start with the
+[bootstrap guide](docs/site/bootstrap.md). The site provides evergreen guidance;
+GitHub releases and exact source commits remain authoritative for the protocol.
+See [site maintenance](docs/site/maintaining.md) for local builds and Pages setup.
+
 Stable [v0.4.0](https://github.com/Leftium/continuum/releases/tag/v0.4.0) is
 published at `76fed3f2fb03df0d7121fc8e026644431de16203`. This tree removes the
 retained 0.3 installation. New implementation work uses stable 0.4 after the
@@ -50,6 +57,7 @@ remains authoritative.
 - `tests/` - digest/repair fixtures, lifecycle and temporary Git integration tests.
 - `AGENTS.md` - project-owned workflow guidance and migration-gate history.
 - `docs/` - client instructions, migration boundary and publication record.
+- `docs/site/`, `mkdocs.yml` - Markdown site pages and navigation.
 - `specs/001-continuum.md` - historical 0.3 design specification, not active workflow guidance.
 - `specs/002-pr-local-redesign.md` - accepted 0.4 architecture and historical constraints.
 - `scripts/check-continuum.sh` - canonical source validation and offline client tests.
@@ -60,3 +68,7 @@ Run `bash scripts/check-continuum.sh` for canonical source validation and the
 full offline suite, or `python3 -m unittest discover -s tests` for tests alone.
 Tests use fixtures and temporary local Git repositories; they do not mutate
 live GitHub state. Checks do not publish releases, deploy or merge.
+
+For the documentation build, install `requirements-docs.txt` in an isolated
+environment and run `python -m mkdocs build --strict`, as described in
+[site maintenance](docs/site/maintaining.md#build-and-preview-locally).
