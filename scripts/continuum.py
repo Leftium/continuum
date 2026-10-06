@@ -570,8 +570,9 @@ def label_notice(message):
 
 
 def label_choice(args, journal, key, option, accepted, question):
-    if key not in journal:
-        choice = getattr(args, key, None)
+    explicit = getattr(args, key, None)
+    if key not in journal or (explicit is not None and explicit != journal[key]):
+        choice = explicit
         if choice is None:
             if sys.stdin.isatty():
                 try:

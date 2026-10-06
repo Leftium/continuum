@@ -3,7 +3,6 @@
 import contextlib
 import copy
 import io
-import json
 from pathlib import Path
 import sys
 from types import SimpleNamespace
@@ -149,6 +148,55 @@ class LabelTests(unittest.TestCase):
         self.assertEqual(prompt.call_count, 1)
         self.assertEqual(self.journal["label_backfill"], "skip")
         self.assertEqual(len(self.additions()), 1)
+
+    def test_explicit_resume_skip_overrides_saved_creation_and_backfill(self):
+        self.journal.update(label="create", label_backfill="sync")
+        self.args.label = "skip"
+        client.bootstrap_labels(self.args, self.journal)
+        self.assertFalse(self.labels)
+        self.assertEqual(self.journal["label"], "skip")
+        self.labels = [{"name": "continuum"}]
+        self.journal["label_created"] = True
+        self.args.label_backfill = "skip"
+        self.prs[2] = self.pr(2)
+        client.bootstrap_labels(self.args, self.journal)
+        self.assertEqual(self.journal["label_backfill"], "skip")
+        self.assertEqual(len(self.additions()), 1)
+
+    def test_unsaved_consent_never_creates_a_label(self):
+        self.args.label = "create"
+        with patch.object(client, "journal_write", side_effect=OSError("journal disk unavailable")):
+            client.bootstrap_labels(self.args, self.journal)
+        self.assertFalse(self.labels)
+        self.assertFalse(self.additions())
+        self.assertIn("bootstrap remains complete", self.err.getvalue())
+
+    def test_application_failure_still_offers_separate_backfill(self):
+        self.args.label = "create"
+        self.terminal.return_value = True
+        self.prs[2] = self.pr(2)
+        self.fail = lambda path, _args: "/issues/1/labels" in path
+        with patch("builtins.input", return_value="yes") as prompt:
+            client.bootstrap_labels(self.args, self.journal)
+        self.assertEqual(prompt.call_count, 1)
+        self.assertIn("/pull/2", self.out.getvalue())
+        self.assertNotIn("Labeled https://github.com/upstream/project/pull/1", self.out.getvalue())
+
+    def test_unconfirmed_addition_is_reported_as_uncertain(self):
+        self.labels = [{"name": "continuum"}]
+        original_api = self.api
+        def unconfirmed(path, *args):
+            return [] if "/issues/" in path else original_api(path, *args)
+        with patch.object(client, "api", side_effect=unconfirmed):
+            client.bootstrap_labels(self.args, self.journal)
+        self.assertNotIn("Labeled ", self.out.getvalue())
+        self.assertIn("failed or uncertain", self.err.getvalue())
+
+    def test_marker_only_malformed_and_duplicate_sections_are_not_candidates(self):
+        for body in (c.CONTRACT_START, self.body + self.body, self.body.replace("```json", "```"),
+                     self.body.replace('"schema": "continuum/0.4"', '"schema": "other/0.4"')):
+            with self.subTest(body=body[:80]):
+                self.assertFalse(client.label_candidate(self.pr(1, body=body)))
 
     def test_sync_uses_marker_pages_preserves_labels_and_reports_exact_changes(self):
         self.labels = [{"name": "continuum"}]

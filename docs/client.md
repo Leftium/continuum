@@ -65,6 +65,7 @@ noninteractive invocation skips creation/backfill and reports the available
 options. Creating the label applies it to the current PR; backfill only adds it
 to other open PRs with a parseable canonical 0.4 body section. Choices are saved
 in the recovery journal before label mutations so resume does not infer consent.
+Explicit flags on resume can replace a saved choice before the next label action.
 
 To backfill later, first create the repository label through an explicitly
 authorized operation, then run:
