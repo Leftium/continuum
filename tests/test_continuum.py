@@ -126,6 +126,31 @@ class ContractTests(unittest.TestCase):
                 c.read_contract(altered)
 
 
+class ReleaseArtifactTests(unittest.TestCase):
+    def test_pinned_artifact_uses_exact_commit_and_canonical_path(self):
+        source = contract()["source"]
+        text = "---\ncontinuum: 0.4.0\nartifact: protocol/CONTINUUM.md\n---\n"
+        with patch.object(client, "gh", return_value=text) as gh:
+            self.assertEqual(client.fetch_protocol(source), text)
+        gh.assert_called_once_with("api", "repos/Leftium/continuum/contents/protocol/CONTINUUM.md?ref=" + source["commit"],
+                                   "-H", "Accept: application/vnd.github.raw+json")
+
+    def test_mutable_or_malformed_source_pin_stops_before_fetch(self):
+        for pin in ("main", "v0.4.0", "e" * 39, "g" * 40):
+            source = {**contract()["source"], "commit": pin}
+            with self.subTest(pin=pin), patch.object(client, "gh") as gh:
+                with self.assertRaises(c.Invalid):
+                    client.fetch_protocol(source)
+                gh.assert_not_called()
+
+    def test_mismatched_artifact_metadata_is_rejected(self):
+        for text in ("---\ncontinuum: 0.3.0\nartifact: protocol/CONTINUUM.md\n---\n",
+                     "---\ncontinuum: 0.4.0\nartifact: CONTINUUM.md\n---\n"):
+            with self.subTest(text=text), patch.object(client, "gh", return_value=text):
+                with self.assertRaises(c.Invalid):
+                    client.fetch_protocol(contract()["source"])
+
+
 class PointerTests(unittest.TestCase):
     def setUp(self):
         self.contract = contract()
@@ -607,6 +632,12 @@ class GitIntegrationTests(unittest.TestCase):
         self.assertEqual(self.g("rev-parse", "HEAD"), self.boot)
 
     def test_complete_bootstrap_pins_once_and_pushes_only_fork(self):
+        self.complete_stable_bootstrap("v0.4.0")
+
+    def test_complete_bootstrap_accepts_unprefixed_stable_tag(self):
+        self.complete_stable_bootstrap("0.4.0")
+
+    def complete_stable_bootstrap(self, tag):
         base_transport = self.root / "base.git"
         subprocess.run(["git", "init", "--bare", str(base_transport)], check=True, capture_output=True)
         self.g("push", str(base_transport), "main:refs/heads/main")
@@ -632,7 +663,7 @@ class GitIntegrationTests(unittest.TestCase):
             if "/git/ref/" in path:
                 return {"object": {"sha": self.base}}
             if path.endswith("/releases/latest"):
-                return {"draft": False, "prerelease": False, "tag_name": "v0.4.0"}
+                return {"draft": False, "prerelease": False, "tag_name": tag}
             if "/commits/" in path:
                 return {"sha": "e" * 40}
             if "/pulls?" in path:
@@ -656,6 +687,9 @@ class GitIntegrationTests(unittest.TestCase):
              patch.object(client.subprocess, "run", side_effect=create):
             client.bootstrap(args)
         self.assertEqual(calls.count("repos/Leftium/continuum/releases/latest"), 1)
+        self.assertEqual(calls.count("repos/Leftium/continuum/commits/" + tag), 1)
+        self.assertEqual(self.value["source"]["commit"], "e" * 40)
+        self.assertEqual(json.loads(Path(args.journal).read_text())["contract"]["source"], self.value["source"])
         self.assertTrue(all(call.args[0]["commit"] == "e" * 40 for call in pin.call_args_list))
         self.assertEqual(len(mutations), 1)
         self.assertTrue(mutations[0]["draft"])
@@ -665,6 +699,43 @@ class GitIntegrationTests(unittest.TestCase):
         self.assertFalse((self.repo / "PR-PLAN.md").exists())
         self.assertEqual(self.g("ls-remote", str(base_transport), "refs/heads/main").split()[0], self.base)
         self.assertTrue(client.origin_provenance(self.value))
+
+    def test_bootstrap_rejects_unpublished_or_unsupported_stable_source(self):
+        args = SimpleNamespace(resume=False, start_now=True, accepted_policy="adopted", repo="upstream/project", head_repo="writer/fork",
+                               base="main", branch="continuum/fresh", plan="/outside/plan.json", title="Start", run=RUN, remote="fork",
+                               source_commit=None, development_source=False, trusted_source=client.TRUSTED_SOURCE)
+        cases = [
+            c.Invalid("no published release"),
+            {"draft": True, "prerelease": False, "tag_name": "v0.4.0"},
+            {"draft": False, "prerelease": True, "tag_name": "v0.4.0"},
+            {"draft": False, "prerelease": False, "tag_name": "v0.3.0"},
+            {"draft": False, "prerelease": False, "tag_name": "v0.4.1"},
+            {"draft": False, "prerelease": False, "tag_name": "main"},
+        ]
+        for release in cases:
+            calls = []
+            def responses(path):
+                calls.append(path)
+                if path.endswith("/releases/latest"):
+                    if isinstance(release, Exception):
+                        raise release
+                    return release
+                if "/git/ref/" in path:
+                    return {"object": {"sha": self.base}}
+                if path in ("repos/upstream/project", "repos/writer/fork"):
+                    return {"full_name": path[6:], "permissions": {"push": True}}
+                raise AssertionError("unexpected source fallback or mutation: " + path)
+            with self.subTest(release=release), patch.object(client, "api", side_effect=responses), \
+                 patch.object(client, "parent_guard"), patch.object(client, "fetch_protocol") as fetch, \
+                 patch.object(client, "journal_write") as journal, patch.object(client, "push") as push:
+                with self.assertRaises(c.Invalid):
+                    client.bootstrap(args)
+                fetch.assert_not_called()
+                journal.assert_not_called()
+                push.assert_not_called()
+            self.assertEqual(calls.count("repos/Leftium/continuum/releases/latest"), 1)
+            self.assertEqual(self.g("rev-parse", "HEAD"), self.boot)
+            self.assertEqual(self.g("status", "--porcelain"), "")
 
     def test_bootstrap_does_not_activate_installed_legacy_base(self):
         args = SimpleNamespace(resume=False, start_now=True, accepted_policy="adopted", repo="upstream/project", head_repo="writer/fork",
