@@ -225,6 +225,19 @@ class EventPresentationTests(unittest.TestCase):
         self.assertNotIn("Long evidence. " * 30, visible)
         self.assertEqual(c.section(text, c.EVENT_START, c.EVENT_END)[3], item)
 
+    def test_evidence_cannot_create_markdown_block_structure(self):
+        cases = (("# heading", r"\# heading"), ("> quote", "&gt; quote"),
+                 ("- list item", r"\- list item"), ("+ list item", r"\+ list item"),
+                 ("* list item", r"\* list item"), ("1. list item", r"1\. list item"),
+                 ("1) list item", r"1\) list item"), ("---", r"\---"),
+                 ("~~~ code", r"\~\~\~ code"))
+        for evidence, escaped in cases:
+            with self.subTest(evidence=evidence):
+                item = event(c.State(), "ready", kind="evidence", details={"acceptance": evidence})
+                text = c.event_text(item)
+                self.assertEqual(text.split("<details>")[0], "**Ready evidence recorded.**\n\n" + escaped + "\n\n")
+                self.assertEqual(c.section(text, c.EVENT_START, c.EVENT_END)[3], item)
+
     def test_wrappers_do_not_hide_malformed_or_duplicate_machine_sections(self):
         text = c.event_text(event(c.State(), "claim"))
         raw = c.section(text, c.EVENT_START, c.EVENT_END)[2]

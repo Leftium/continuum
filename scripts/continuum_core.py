@@ -303,13 +303,15 @@ def event_summary(event):
            "human_confirmation" if action == "recover" else "acceptance")
     detail = event["details"].get(key)
     if isinstance(detail, str) and detail.strip():
-        # Keep the full evidence in metadata; excerpts cannot inject Markdown,
-        # HTML, or reserved event delimiters into the surrounding presentation.
+        # Keep full evidence in metadata. Display excerpts as a paragraph,
+        # escaping formatting and framing; reference URLs may still autolink.
         excerpt = " ".join(detail.split())
         if len(excerpt) > 280:
             excerpt = excerpt[:277].rsplit(" ", 1)[0] + "..."
         excerpt = html.escape(excerpt, quote=False)
-        excerpt = re.sub(r"([\\`*_\[\]])", r"\\\1", excerpt)
+        excerpt = re.sub(r"([\\`*_~\[\]])", r"\\\1", excerpt)
+        excerpt = re.sub(r"^([#+-])", r"\\\1", excerpt)
+        excerpt = re.sub(r"^(\d{1,9})([.)])(?=\s|$)", r"\1\\\2", excerpt)
         summary += "\n\n" + excerpt
     return summary
 

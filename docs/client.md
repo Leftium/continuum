@@ -105,7 +105,9 @@ Event comments show an action-specific Markdown summary, followed by a collapsed
 `Continuum metadata` disclosure. The summary includes a short excerpt of the
 action's acceptance reference, suspension/cancellation reason, or human recovery
 confirmation when present. Whitespace is flattened, long excerpts are shortened,
-and markup is escaped for display; run IDs and contract/HEAD metadata stay inside
+and formatting is escaped so excerpts remain paragraphs rather than headings,
+quotes, or lists. Reference URLs may still become automatic links.
+Run IDs and contract/HEAD metadata stay inside
 the disclosure. The summary helps readers scan the history;
 the exact 0.4 event markers and fenced JSON inside the disclosure remain the
 authoritative metadata for parsing and replay. The client emits that JSON on one
