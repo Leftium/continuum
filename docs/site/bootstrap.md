@@ -29,6 +29,10 @@ implementation starts, acquire ownership before writing, and stop for unclear
 authority or conflicting state. Merge and publication need separate authority.
 ```
 
+The current development tree prepares 0.4.1. Publication requires separate
+human authorization after merge; until then, use the published 0.4.0 pin and
+matching client above. See the [release preparation record](../release.md).
+
 ## For the coding agent
 
 Read the [pinned protocol](https://github.com/Leftium/continuum/blob/76fed3f2fb03df0d7121fc8e026644431de16203/protocol/CONTINUUM.md)

@@ -1,5 +1,5 @@
 ---
-continuum: 0.4.0
+continuum: 0.4.1
 artifact: protocol/CONTINUUM.md
 ---
 
@@ -40,7 +40,7 @@ Missing artifacts, unsupported versions, redirects across trust boundaries or
 unverifiable pins stop the transaction. Explicit development pins are for authorized
 testing and do not satisfy the stable migration prerequisite.
 
-This wire version supports github.com and protocol 0.4.0. Other hosts/versions
+This wire version supports github.com and protocol 0.4.1. Other hosts/versions
 require an explicitly supported client/protocol. Labels, repository settings,
 installed workflows and issues are not prerequisites. Issues, blockers, milestones
 and dependencies retain ordinary project semantics.

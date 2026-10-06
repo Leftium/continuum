@@ -1,4 +1,34 @@
-# Publishing Continuum 0.4.0
+# Preparing Continuum 0.4.1
+
+PR #27 prepares 0.4.1 and includes the merged PR #26 event-comment presentation:
+human-readable summaries, collapsed metadata and compact event JSON. The
+`continuum/0.4`, `continuum-event/0.4` and `continuum-pointer/0.4` schemas and
+markers stay unchanged, as do lifecycle, leases, parser/replay, cleanup and
+recovery semantics.
+
+The canonical artifact front matter, reference client and release-discovery
+fixtures support 0.4.1. Stable discovery accepts `v0.4.1` or `0.4.1`, rejects
+draft/prerelease or mismatched sources, and pins the resolved exact commit.
+This candidate cannot bootstrap from the currently published 0.4.0 release;
+use a trusted 0.4.0 checkout until 0.4.1 is published.
+
+## Preparation and publication boundaries
+
+1. Run `bash scripts/check-continuum.sh` and required documentation CI on the
+   preparation HEAD. Record check evidence on PR #27.
+2. Obtain clean independent review through the normal 0.4 Ready workflow.
+3. After review, acquire cleanup ownership, remove only the owned temporary
+   pointer, and confirm required checks on the cleanup HEAD.
+4. Merge only with separate human merge authority. Identify and verify the exact
+   resulting release commit on `main`; changed content requires fresh review.
+5. Obtain separate human authorization after merge before creating the immutable
+   `v0.4.1` tag and publishing a stable GitHub release at that exact commit.
+6. After authorized publication, verify the tag resolves to that commit, the
+   latest release is neither draft nor prerelease, and artifact metadata matches.
+
+This preparation PR creates no tag or release and authorizes no deployment.
+
+## Historical 0.4.0 publication
 
 Stable [v0.4.0](https://github.com/Leftium/continuum/releases/tag/v0.4.0) was
 published under the owner's authority in issue #19 at exact commit
