@@ -6,9 +6,8 @@ repo_name: Leftium/continuum
 edit_uri: edit/main/docs/site/
 docs_dir: docs/site
 theme:
-  name: mkdocs
-  color_mode: auto
-  navigation_depth: 2
+  name: readthedocs
+  navigation_depth: 3
 nav:
   - Home: index.md
   - Start a project: bootstrap.md

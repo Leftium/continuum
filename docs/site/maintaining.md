@@ -3,8 +3,10 @@
 The public entry point is configured for
 [https://leftium.github.io/continuum/](https://leftium.github.io/continuum/).
 It becomes available after GitHub Pages setup and an authorized merge deploy
-successfully. The site uses MkDocs with its built-in theme, Markdown pages in
-`docs/site/`, and navigation in `mkdocs.yml`. Generated HTML is ignored.
+successfully. The site uses MkDocs with its built-in Read the Docs theme, Markdown pages in
+`docs/site/`, and navigation in `mkdocs.yml`. The left sidebar keeps site pages
+visible while nesting sections of the current page underneath them. Generated
+HTML is ignored.
 
 Protocol and client instructions stay in their existing repository files. The
 site links their immutable release sources instead of maintaining another copy.
