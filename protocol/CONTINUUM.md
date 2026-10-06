@@ -255,6 +255,26 @@ creation for that SAME branch/commit. Never make a second bootstrap commit or
 branch. Earlier interrupted stages require explicit reconstruction/handoff.
 An orphan branch is exceptional recovery state, never prepared backlog.
 
+### Optional PR label
+
+Labels are convenience/discovery metadata, never workflow authority. The canonical
+PR-body section remains authoritative; repositories need no `continuum` label.
+When bootstrapping, clients SHOULD apply an existing `continuum` label to the new
+PR best-effort. If it is missing and creation is permitted, clients SHOULD offer
+an explicit create/skip choice. Clients MUST NOT silently create repository
+labels. Declining, unavailable permissions, and label lookup/creation/application
+failures MUST NOT block bootstrap or change ownership or readiness.
+
+Noninteractive clients MUST use an explicit create/skip policy rather than infer
+consent. A safe default may skip with a message explaining the creation option.
+After creating the label, clients SHOULD offer a separate one-time backfill choice
+and apply the label to the current PR best-effort. Backfill SHOULD default to open,
+unmerged 0.4 PRs identified by their canonical body marker, never titles, branch
+names, or existing labels. It MUST be idempotent, preserve unrelated labels, and
+report exactly which PRs were changed, including partial failures. Historical
+backfill MAY be offered explicitly. Old 0.3 PRs require an accepted migration/drain
+inventory or explicit human selection; clients MUST NOT guess them heuristically.
+
 ## Contract repair
 
 Invalid revision/digest blocks ordinary acquisition, implementation, review,
