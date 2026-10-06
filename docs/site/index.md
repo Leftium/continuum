@@ -26,6 +26,10 @@ remain authoritative for protocol rules and integrity. Bootstrap resolves a
 supported stable release once and retains the exact commit in the PR contract;
 an active PR keeps its pin even if a newer release appears.
 
+The current development tree prepares 0.4.1. Publication requires separate
+human authorization after merge; until then, use the published 0.4.0 pin and
+matching client above. See the [release preparation record](https://github.com/Leftium/continuum/blob/main/docs/release.md).
+
 ## How work moves
 
 1. A human adopts the work and the selected base's policy and blockers are checked.

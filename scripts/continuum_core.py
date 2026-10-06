@@ -8,7 +8,7 @@ import re
 import uuid
 from dataclasses import dataclass, field
 
-VERSION = "0.4.0"
+VERSION = "0.4.1"
 CONTRACT_START = "<!-- continuum:contract:0.4 -->"
 CONTRACT_END = "<!-- /continuum:contract -->"
 EVENT_START = "<!-- continuum:event:0.4 -->"

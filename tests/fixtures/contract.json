@@ -13,7 +13,7 @@
   "context": [
     "https://github.com/upstream/project/issues/1"
   ],
-  "digest": "sha256:4380e2c97ddf093a48072f3c16308c4f0d96a2e718adf92a59e276459e2a4950",
+  "digest": "sha256:845f1577667c63317d7f90807599df6e8694ff11478117b002b90e6ff97c4449",
   "goal": "Ship caf\u00e9 \ud83d\ude80",
   "head": {
     "host": "github.com",
@@ -33,7 +33,7 @@
     "host": "github.com",
     "path": "protocol/CONTINUUM.md",
     "repository": "Leftium/continuum",
-    "version": "0.4.0"
+    "version": "0.4.1"
   },
   "target": {
     "host": "github.com",

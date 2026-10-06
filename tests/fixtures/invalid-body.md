@@ -37,7 +37,7 @@ Unrelated introduction.
     "host": "github.com",
     "path": "protocol/CONTINUUM.md",
     "repository": "Leftium/continuum",
-    "version": "0.4.0"
+    "version": "0.4.1"
   },
   "target": {
     "host": "github.com",

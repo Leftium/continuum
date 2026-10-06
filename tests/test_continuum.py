@@ -256,14 +256,14 @@ class EventPresentationTests(unittest.TestCase):
 class ReleaseArtifactTests(unittest.TestCase):
     def test_pinned_artifact_uses_exact_commit_and_canonical_path(self):
         source = contract()["source"]
-        text = "---\ncontinuum: 0.4.0\nartifact: protocol/CONTINUUM.md\n---\n"
+        text = "---\ncontinuum: 0.4.1\nartifact: protocol/CONTINUUM.md\n---\n"
         with patch.object(client, "gh", return_value=text) as gh:
             self.assertEqual(client.fetch_protocol(source), text)
         gh.assert_called_once_with("api", "repos/Leftium/continuum/contents/protocol/CONTINUUM.md?ref=" + source["commit"],
                                    "-H", "Accept: application/vnd.github.raw+json")
 
     def test_mutable_or_malformed_source_pin_stops_before_fetch(self):
-        for pin in ("main", "v0.4.0", "e" * 39, "g" * 40):
+        for pin in ("main", "v0.4.1", "e" * 39, "g" * 40):
             source = {**contract()["source"], "commit": pin}
             with self.subTest(pin=pin), patch.object(client, "gh") as gh:
                 with self.assertRaises(c.Invalid):
@@ -271,8 +271,9 @@ class ReleaseArtifactTests(unittest.TestCase):
                 gh.assert_not_called()
 
     def test_mismatched_artifact_metadata_is_rejected(self):
-        for text in ("---\ncontinuum: 0.3.0\nartifact: protocol/CONTINUUM.md\n---\n",
-                     "---\ncontinuum: 0.4.0\nartifact: CONTINUUM.md\n---\n"):
+        for text in ("---\ncontinuum: 0.4.0\nartifact: protocol/CONTINUUM.md\n---\n",
+                     "---\ncontinuum: 0.3.0\nartifact: protocol/CONTINUUM.md\n---\n",
+                     "---\ncontinuum: 0.4.1\nartifact: CONTINUUM.md\n---\n"):
             with self.subTest(text=text), patch.object(client, "gh", return_value=text):
                 with self.assertRaises(c.Invalid):
                     client.fetch_protocol(contract()["source"])
@@ -759,10 +760,10 @@ class GitIntegrationTests(unittest.TestCase):
         self.assertEqual(self.g("rev-parse", "HEAD"), self.boot)
 
     def test_complete_bootstrap_pins_once_and_pushes_only_fork(self):
-        self.complete_stable_bootstrap("v0.4.0")
+        self.complete_stable_bootstrap("v0.4.1")
 
     def test_complete_bootstrap_accepts_unprefixed_stable_tag(self):
-        self.complete_stable_bootstrap("0.4.0")
+        self.complete_stable_bootstrap("0.4.1")
 
     def complete_stable_bootstrap(self, tag):
         base_transport = self.root / "base.git"
@@ -833,10 +834,11 @@ class GitIntegrationTests(unittest.TestCase):
                                source_commit=None, development_source=False, trusted_source=client.TRUSTED_SOURCE)
         cases = [
             c.Invalid("no published release"),
-            {"draft": True, "prerelease": False, "tag_name": "v0.4.0"},
-            {"draft": False, "prerelease": True, "tag_name": "v0.4.0"},
+            {"draft": True, "prerelease": False, "tag_name": "v0.4.1"},
+            {"draft": False, "prerelease": True, "tag_name": "v0.4.1"},
             {"draft": False, "prerelease": False, "tag_name": "v0.3.0"},
-            {"draft": False, "prerelease": False, "tag_name": "v0.4.1"},
+            {"draft": False, "prerelease": False, "tag_name": "v0.4.0"},
+            {"draft": False, "prerelease": False, "tag_name": "v0.4.2"},
             {"draft": False, "prerelease": False, "tag_name": "main"},
         ]
         for release in cases:
@@ -932,7 +934,7 @@ class AdapterTests(unittest.TestCase):
             call.assert_not_called()
     def test_source_trust_and_no_mutable_fallback(self):
         source = contract()["source"]
-        with patch.object(client, "gh", return_value="---\ncontinuum: 0.4.0\nartifact: protocol/CONTINUUM.md\n---\n") as mock:
+        with patch.object(client, "gh", return_value="---\ncontinuum: 0.4.1\nartifact: protocol/CONTINUUM.md\n---\n") as mock:
             client.fetch_protocol(source)
             self.assertIn(source["commit"], mock.call_args.args[1])
             foreign = {**source, "repository": "stranger/protocol"}

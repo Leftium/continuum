@@ -20,6 +20,12 @@ after Pages setup and the first authorized deployment. Start with the
 GitHub releases and exact source commits remain authoritative for the protocol.
 See [site maintenance](docs/site/maintaining.md) for local builds and Pages setup.
 
+This tree prepares Continuum 0.4.1, including PR #26's human-readable event
+comments, collapsed metadata and compact JSON. All 0.4 wire formats and lifecycle
+rules are preserved. Preparation and merge do not publish a release; publication
+requires separate human authorization after merge. Until then, use a trusted
+0.4.0 client checkout for stable bootstrap. See [release preparation](docs/release.md).
+
 Stable [v0.4.0](https://github.com/Leftium/continuum/releases/tag/v0.4.0) is
 published at `76fed3f2fb03df0d7121fc8e026644431de16203`. This tree removes the
 retained 0.3 installation. New implementation work uses stable 0.4 after the
