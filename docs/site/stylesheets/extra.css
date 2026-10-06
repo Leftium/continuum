@@ -1,7 +1,14 @@
 /* Keep the article visually centered in the full viewport on wide screens.
-   The Read the Docs theme reserves a fixed 300px left navigation column. */
+   The Read the Docs theme reserves a fixed 300px left navigation column and
+   switches the article to margin: 0 above 1100px, so restore horizontal auto
+   margins while balancing the sidebar with equal space on the right. */
 @media screen and (min-width: 1400px) {
   .wy-nav-content-wrap {
     padding-right: 300px;
+  }
+
+  .wy-nav-content {
+    margin-left: auto;
+    margin-right: auto;
   }
 }
