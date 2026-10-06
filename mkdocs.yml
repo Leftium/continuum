@@ -1,0 +1,20 @@
+site_name: Continuum
+site_description: Coordinate coding agents and humans through GitHub pull requests.
+site_url: https://leftium.github.io/continuum/
+repo_url: https://github.com/Leftium/continuum
+repo_name: Leftium/continuum
+edit_uri: edit/main/docs/site/
+docs_dir: docs/site
+theme:
+  name: mkdocs
+  color_mode: auto
+  navigation_depth: 2
+nav:
+  - Home: index.md
+  - Start a project: bootstrap.md
+  - Maintain the site: maintaining.md
+validation:
+  links:
+    not_found: warn
+    anchors: warn
+    unrecognized_links: warn
