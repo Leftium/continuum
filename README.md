@@ -1,79 +1,55 @@
 # Continuum
 
-Continuum is a GitHub-native workflow for coordinating coding agents and humans across long-running software projects.
+Continuum is a GitHub-native workflow for coordinating coding agents and humans
+across long-running software projects.
 
-**0.4 keeps the current contract and implementation plan in the PR body.** Comments
-carry run-scoped ownership, verification, review and recovery. A temporary
-`AGENTS.md` pointer provides branch discovery and is removed after clean review.
-Cleanup cannot delete the plan. Issues retain ordinary GitHub semantics.
+The 0.5 design centers on one run-scoped write lease. A normal PR uses two
+visible coordination comments: claim before product writes, then release with
+the exact full shared HEAD SHA. GitHub Draft/Ready state, reviews, checks, and a
+human-authorized merge handle the rest. The new protocol has no JSON PR-body
+contract, target-repository pointer, or cleanup lifecycle.
 
-Read the canonical [0.4 protocol](protocol/CONTINUUM.md) and
-[reference client instructions](docs/client.md). The dependency-free client uses
-Python 3.9+, Git and authenticated `gh`; other clients can perform the same
-transactions. Stable bootstrap resolves the supported release to an exact source
-commit and retains that pin in the PR contract.
+Read the canonical [0.5 protocol](protocol/CONTINUUM.md) and [reference client
+instructions](docs/client.md). The client uses Python 3.9+, Git, and
+authenticated `gh`. It does not install files in a target repository.
 
-The public documentation/bootstrap entry point is configured for
-[leftium.github.io/continuum](https://leftium.github.io/continuum/), available
-after Pages setup and the first authorized deployment. Start with the
-[bootstrap guide](docs/site/bootstrap.md). The site provides evergreen guidance;
-GitHub releases and exact source commits remain authoritative for the protocol.
-See [site maintenance](docs/site/maintaining.md) for local builds and Pages setup.
+Continuum 0.5 is an incompatible development version. Do not use it as a stable
+workflow or publish it from this PR. Existing 0.4 PRs keep their exact pinned
+0.4.1 interpreter and history. New work uses 0.5 only after a separate stable
+release makes it available.
 
-This tree prepares Continuum 0.4.1, including PR #26's human-readable event
-comments, collapsed metadata and compact JSON. All 0.4 wire formats and lifecycle
-rules are preserved. Preparation and merge do not publish a release; publication
-requires separate human authorization after merge. Until then, use a trusted
-0.4.0 client checkout for stable bootstrap. See [release preparation](docs/release.md).
-
-Stable [v0.4.0](https://github.com/Leftium/continuum/releases/tag/v0.4.0) is
-published at `76fed3f2fb03df0d7121fc8e026644431de16203`. This tree removes the
-retained 0.3 installation. New implementation work uses stable 0.4 after the
-[final migration PR #24](https://github.com/Leftium/continuum/pull/24) merges;
-that PR itself remains governed by 0.3 through review, plan-only finalization
-and merge. The project-owned admission gate in [AGENTS.md](AGENTS.md) remains
-active through that boundary. See [migration instructions](docs/migration.md)
-and the [publication record](docs/release.md).
+The public documentation site at
+[leftium.github.io/continuum](https://leftium.github.io/continuum/) retains the
+published 0.4 guidance until its documentation work is updated separately. See
+[site maintenance](docs/site/maintaining.md) for local builds and Pages setup.
 
 ## Starting work
 
-Use portable bootstrap from a trusted client checkout. Version 0.4 needs no
-installed root protocol, plan template or finalizer in the target repository.
-The PR body stores the plan; a temporary pointer preserves existing `AGENTS.md`
-instructions. Read selected-base policy and ordinary blockers before bootstrap,
-then acquire run-scoped ownership before implementation writes.
+Read accepted-base policy and project blockers. Claim the Draft PR before
+product writes, implement and verify under that lease, then release with the
+exact shared HEAD SHA. Mark the PR Ready for native GitHub review and checks.
+Merge requires human authority.
 
-A leased PR grants standing authority for routine in-scope, non-destructive work
-where repository and higher-precedence policy allow it. Verify, commit and push
-coherent checkpoints, then continue the plan. Release ownership before yielding
-or ending normally; explicit approval suspension retains ownership. Ready PRs
-are write-stopped for implementation and require clean independent review before
-bounded pointer cleanup. Merge requires separate authority.
-
-Bootstrap offers optional `continuum` PR labeling and a separate backfill choice.
-Label creation requires explicit consent; missing permissions or label failures
-do not block bootstrap. See [client instructions](docs/client.md#bootstrap) for
-noninteractive create/skip flags and `label sync`. Canonical PR-body metadata
-remains authoritative.
+Use `python3 scripts/continuum.py status --pr <full-pr-url>` to inspect current
+lease state. See the [client guide](docs/client.md) for claim, release, and
+owner-only abandoned-lease recovery.
 
 ## Repository layout
 
-- `protocol/CONTINUUM.md` - canonical 0.4 protocol and interoperable wire formats.
-- `scripts/continuum.py`, `scripts/continuum_core.py` - reference client and offline primitives.
-- `tests/` - digest/repair fixtures, lifecycle and temporary Git integration tests.
-- `AGENTS.md` - project-owned workflow guidance and migration-gate history.
-- `docs/` - client instructions, migration boundary and publication record.
-- `docs/site/`, `mkdocs.yml` - Markdown site pages and navigation.
-- `specs/001-continuum.md` - historical 0.3 design specification, not active workflow guidance.
-- `specs/002-pr-local-redesign.md` - accepted 0.4 architecture and historical constraints.
-- `scripts/check-continuum.sh` - canonical source validation and offline client tests.
+- `protocol/CONTINUUM.md` - canonical 0.5 protocol and visible comment records.
+- `scripts/continuum.py`, `scripts/continuum_core.py` - reference client and
+  offline state parser.
+- `tests/` - lease, conflict, recovery, and wire-format conformance tests.
+- `AGENTS.md` - project-owned policy and historical migration boundary.
+- `docs/` - client instructions, site maintenance, and historical release records.
+- `specs/` - design history; these documents do not override the protocol.
+- `scripts/check-continuum.sh` - canonical source validation and offline tests.
 
 ## Verification
 
 Run `bash scripts/check-continuum.sh` for canonical source validation and the
 full offline suite, or `python3 -m unittest discover -s tests` for tests alone.
-Tests use fixtures and temporary local Git repositories; they do not mutate
-live GitHub state. Checks do not publish releases, deploy or merge.
+Tests do not write to GitHub. Checks do not publish releases, deploy, or merge.
 
 For the documentation build, install `requirements-docs.txt` in an isolated
 environment and run `python -m mkdocs build --strict`, as described in
