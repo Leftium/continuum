@@ -31,7 +31,7 @@ authority or conflicting state. Merge and publication need separate authority.
 
 The current development tree prepares 0.4.1. Publication requires separate
 human authorization after merge; until then, use the published 0.4.0 pin and
-matching client above. See the [release preparation record](../release.md).
+matching client above. See the [release preparation record](https://github.com/Leftium/continuum/blob/main/docs/release.md).
 
 ## For the coding agent
 
