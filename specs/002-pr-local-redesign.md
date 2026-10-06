@@ -1,6 +1,6 @@
 # PR-native Continuum redesign
 
-Status: accepted architecture for issue #14 and PR #15 at `e55c8da75fe826656c2f3263497d0ac2211000e5`, after the clean T3 review. This document preserves the design rationale and historical constraints. The normative 0.4 wire formats and lifecycle are now in `protocol/CONTINUUM.md`; client instructions are in `docs/client.md`. PR #15 merged under 0.3 without migrating the reference repository, which remains governed by 0.3 until the gated migration.
+Status: accepted architecture for issue #14 and PR #15 at `e55c8da75fe826656c2f3263497d0ac2211000e5`, after the clean T3 review. This document preserves the design rationale and historical constraints. The normative 0.4 wire formats and lifecycle are now in `protocol/CONTINUUM.md`; client instructions are in `docs/client.md`. PR #15 merged under 0.3 without migrating the reference repository. PR #24 removes that retained installation; new work uses stable 0.4 after its merge. See `docs/migration.md` for the boundary.
 
 ## Direction
 

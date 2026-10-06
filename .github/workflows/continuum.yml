@@ -14,5 +14,5 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Check retained 0.3 workflow and canonical 0.4 source/client
+      - name: Check canonical 0.4 source and reference client
         run: bash scripts/check-continuum.sh

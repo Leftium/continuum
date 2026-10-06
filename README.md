@@ -9,62 +9,33 @@ Cleanup cannot delete the plan. Issues retain ordinary GitHub semantics.
 
 Read the canonical [0.4 protocol](protocol/CONTINUUM.md) and
 [reference client instructions](docs/client.md). The dependency-free client uses
-Python 3.9+, Git and `gh`; other clients can perform the same transactions.
-Stable release discovery pins an exact source commit and stops until a supported
-stable 0.4 release exists. Explicit development pins support authorized testing.
+Python 3.9+, Git and authenticated `gh`; other clients can perform the same
+transactions. Stable bootstrap resolves the supported release to an exact source
+commit and retains that pin in the PR contract.
 
-The 0.4 protocol/client and optional PR-labeling implementation have merged.
-This reference repository **remains governed by 0.3** until its gated migration.
-The installed root protocol/templates/finalizer below are intentionally retained.
-Removal requires the admission gate, full drain, stable 0.4 release and designated
-final migration described in [migration instructions](docs/migration.md).
-See the [release checklist](docs/release.md) for the 0.4.0 publication boundary.
+Stable [v0.4.0](https://github.com/Leftium/continuum/releases/tag/v0.4.0) is
+published at `76fed3f2fb03df0d7121fc8e026644431de16203`. This tree removes the
+retained 0.3 installation. New implementation work uses stable 0.4 after the
+[final migration PR #24](https://github.com/Leftium/continuum/pull/24) merges;
+that PR itself remains governed by 0.3 through review, plan-only finalization
+and merge. The project-owned admission gate in [AGENTS.md](AGENTS.md) remains
+active through that boundary. See [migration instructions](docs/migration.md)
+and the [publication record](docs/release.md).
 
-## Retained 0.3 model
+## Starting work
 
-- GitHub **issues** are the canonical units of work.
-- GitHub **milestones** optionally group larger outcomes.
-- Work ordering is expressed by issue relationships rather than sequence numbers.
-- An implementation branch and pull request are created only when work starts.
-- Every implementation branch starts with a temporary root **`PR-PLAN.md`** that carries the implementation contract through coding and review, then is deleted by the standard finalizer before merge.
-- A leased Continuum PR grants standing approval for routine in-scope, non-destructive repository work unless project or higher-precedence policy narrows it.
-- A **checkpoint is a savepoint, not a yield point**: verify, commit, and push each coherent checkpoint, then continue through the plan without asking whether to proceed.
-- Agents prefer the existing project worktree and switch it to the PR branch when that is safe; separate worktrees are a fallback for dirty/conflicting or concurrent work.
-- A **draft pull request** means implementation is still open; it may rest unleased between writing runs.
-- A **write lease** is run-scoped: one writer acquires it before branch writes and releases it before yielding or ending normally.
-- If required human approval blocks commit or push, the lease may be explicitly **suspended** across that approval pause; ownership does not transfer.
-- Multiple independent draft PRs may coexist, each leased or unleased.
-- A **ready pull request** is unleased and write-stopped for implementation. The cleanup-only plan finalizer may still run after review.
-- Live workflow state stays in GitHub. `CONTINUUM.md` defines how agents and humans interpret that state.
-- Installed `CONTINUUM.md` is vendor-managed protocol text copied verbatim from the accepted Continuum reference; repository-specific workflow policy lives in project-owned `AGENTS.md` content outside the managed Continuum markers or in referenced project docs/specs.
+Use portable bootstrap from a trusted client checkout. Version 0.4 needs no
+installed root protocol, plan template or finalizer in the target repository.
+The PR body stores the plan; a temporary pointer preserves existing `AGENTS.md`
+instructions. Read selected-base policy and ordinary blockers before bootstrap,
+then acquire run-scoped ownership before implementation writes.
 
-## Repository layout
-
-- `protocol/CONTINUUM.md` - canonical 0.4 protocol and interoperable wire formats.
-- `scripts/continuum.py`, `scripts/continuum_core.py` - 0.4 client and offline primitives.
-- `tests/` - digest/repair fixtures, lifecycle and temporary Git integration tests.
-- `specs/002-pr-local-redesign.md` - accepted architecture and historical constraints.
-- `CONTINUUM.md` - vendor-managed Continuum protocol file; installed copies should match the accepted reference exactly.
-- `AGENTS.md` - managed Continuum discovery block plus any repository-owned policy outside the managed markers.
-- `specs/001-continuum.md` - draft protocol specification.
-- `templates/CONTINUUM.md` - installable copy of `CONTINUUM.md`; kept byte-identical by the self-check.
-- `templates/PR-PLAN.md` - compact starter for the temporary per-PR root plan.
-- `scripts/continuum-finalize-pr.sh` - safe final cleanup; run it with `bash scripts/continuum-finalize-pr.sh` after review is otherwise clean to delete only the temporary root plan, commit, and push.
-- `templates/continuum-finalize-pr.sh` - installable copy of that finalizer.
-- `scripts/check-continuum.sh` - self-hosting consistency check.
-
-## Legacy installation proposal
-
-The planned installer command is:
-
-```sh
-le add continuum
-```
-
-This unimplemented installation proposal belongs to 0.3. Version 0.4 uses portable
-bootstrap instead of repository installation and does not create root protocol
-or plan files. Its target repository needs no labels, settings changes or upstream
-installed machinery.
+A leased PR grants standing authority for routine in-scope, non-destructive work
+where repository and higher-precedence policy allow it. Verify, commit and push
+coherent checkpoints, then continue the plan. Release ownership before yielding
+or ending normally; explicit approval suspension retains ownership. Ready PRs
+are write-stopped for implementation and require clean independent review before
+bounded pointer cleanup. Merge requires separate authority.
 
 Bootstrap offers optional `continuum` PR labeling and a separate backfill choice.
 Label creation requires explicit consent; missing permissions or label failures
@@ -72,10 +43,20 @@ do not block bootstrap. See [client instructions](docs/client.md#bootstrap) for
 noninteractive create/skip flags and `label sync`. Canonical PR-body metadata
 remains authoritative.
 
-If an agent's GitHub connector cannot perform a bootstrap operation, give the human the exact `gh` CLI command.
+## Repository layout
 
-## Status
+- `protocol/CONTINUUM.md` - canonical 0.4 protocol and interoperable wire formats.
+- `scripts/continuum.py`, `scripts/continuum_core.py` - reference client and offline primitives.
+- `tests/` - digest/repair fixtures, lifecycle and temporary Git integration tests.
+- `AGENTS.md` - project-owned workflow guidance and migration-gate history.
+- `docs/` - client instructions, migration boundary and publication record.
+- `specs/001-continuum.md` - historical 0.3 design specification, not active workflow guidance.
+- `specs/002-pr-local-redesign.md` - accepted 0.4 architecture and historical constraints.
+- `scripts/check-continuum.sh` - canonical source validation and offline client tests.
 
-Run `bash scripts/check-continuum.sh` for both versions' checks, or
-`python3 -m unittest discover -s tests` for the offline 0.4 suite. Tests do not
-mutate live GitHub state. Implementing 0.4 does not publish, migrate or merge.
+## Verification
+
+Run `bash scripts/check-continuum.sh` for canonical source validation and the
+full offline suite, or `python3 -m unittest discover -s tests` for tests alone.
+Tests use fixtures and temporary local Git repositories; they do not mutate
+live GitHub state. Checks do not publish releases, deploy or merge.

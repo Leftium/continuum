@@ -232,6 +232,8 @@ removal must remain an ancestor, and subsequent `AGENTS.md` history must prove
 absence. Rewritten-history mapping is an explicit
 human/capable-client handoff, not a validation bypass flag.
 
-`bash scripts/check-continuum.sh` runs retained 0.3 checks and offline 0.4 tests.
+`bash scripts/check-continuum.sh` validates the canonical 0.4 source and runs
+the offline reference-client tests.
 Tests use fixtures/local temporary Git repositories, never live GitHub mutations.
-This reference repository still uses 0.3; see [migration.md](migration.md).
+New work uses stable 0.4 after the migration PR merges; see
+[migration.md](migration.md) for that boundary and its historical 0.3 procedure.
