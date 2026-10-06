@@ -5,8 +5,9 @@ The public entry point is configured for
 It becomes available after GitHub Pages setup and an authorized merge deploy
 successfully. The site uses MkDocs with its built-in Read the Docs theme, Markdown pages in
 `docs/site/`, and navigation in `mkdocs.yml`. The left sidebar keeps site pages
-visible while nesting sections of the current page underneath them. Generated
-HTML is ignored.
+visible while nesting sections of the current page underneath them. A small
+`stylesheets/extra.css` override centers the article relative to the full viewport
+on wide screens while leaving narrower layouts unchanged. Generated HTML is ignored.
 
 Protocol and client instructions stay in their existing repository files. The
 site links their immutable release sources instead of maintaining another copy.

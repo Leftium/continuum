@@ -1,0 +1,7 @@
+/* Keep the article visually centered in the full viewport on wide screens.
+   The Read the Docs theme reserves a fixed 300px left navigation column. */
+@media screen and (min-width: 1400px) {
+  .wy-nav-content-wrap {
+    padding-right: 300px;
+  }
+}

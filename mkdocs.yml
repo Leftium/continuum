@@ -5,6 +5,8 @@ repo_url: https://github.com/Leftium/continuum
 repo_name: Leftium/continuum
 edit_uri: edit/main/docs/site/
 docs_dir: docs/site
+extra_css:
+  - stylesheets/extra.css
 theme:
   name: readthedocs
   navigation_depth: 3
