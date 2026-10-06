@@ -2,9 +2,11 @@
 
 Adding the canonical artifact and client does not migrate this repository. Root
 `CONTINUUM.md`, templates, finalizer, `PR-PLAN.md` and managed AGENTS block retain
-0.3 semantics. PR #15 itself stays 0.3 through independent review/finalization.
+0.3 semantics. The protocol/client implementation in PR #15 and optional
+PR-labeling work in PR #18 have merged under 0.3 without migrating this repository.
 
-Publication is separately authorized. Review/check the artifact at an exact
+Publication is separately authorized; use the [release checklist](release.md).
+Review/check the artifact at an exact
 source commit, then publish a supported stable `v0.4.0` tag/release pointing to
 it. The release version and `protocol/CONTINUUM.md` metadata must agree. Avoid
 moving published tags; use immutable-release protections where available.
@@ -39,8 +41,8 @@ head/destination, `git rm -- PR-PLAN.md`, make the removal-only commit and quali
 non-force push. Do not infer 0.4 semantics for the migration PR itself.
 
 Before merge, establish supported stable 0.4 publication, clean independent
-review/checks, empty drain and merge authority. None is implied by implementation
-PR #15. New work uses 0.4 only after the migration boundary lands.
+review/checks, empty drain and merge authority. None is implied by the merged protocol/client
+implementation. New work uses 0.4 only after the migration boundary lands.
 
 Old closed-unmerged work normally starts a NEW 0.4 PR on migrated base with only
 relevant code/context. In-place conversion needs explicit human authorization:
