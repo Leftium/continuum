@@ -3,6 +3,8 @@ name: Stable release
 on:
   push:
     branches: [main]
+    paths:
+      - protocol/CONTINUUM.md
 
 permissions:
   contents: write

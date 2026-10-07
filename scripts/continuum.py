@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Small GitHub reference client for Continuum 0.5 lease records."""
+"""Small GitHub reference client for Continuum 0.6 lease records."""
 
 import argparse
 import json
@@ -10,7 +10,7 @@ from urllib.parse import quote
 import continuum_core as c
 
 TRUSTED_REPOSITORY = "Leftium/continuum"
-PIN = re.compile(r"Continuum: " + re.escape(c.VERSION) + r"; protocol source: Leftium/continuum@([0-9a-f]{40}):protocol/CONTINUUM\.md")
+PIN = re.compile(r"^Continuum: Leftium/continuum@([0-9a-f]{40})$", re.MULTILINE)
 
 
 def command(*args):
@@ -37,9 +37,8 @@ def read_pr(url):
 
 
 def pinned_protocol(pr):
-    body = pr.get("body") or ""
-    pins = PIN.findall(body)
-    c.require(len(pins) == 1, "PR must contain one immutable Continuum 0.5 protocol pin")
+    pins = PIN.findall(pr.get("body") or "")
+    c.require(len(pins) == 1, "PR must contain one immutable Continuum 0.6 protocol pin")
     source = pins[0]
     content = command("gh", "api", f"repos/{TRUSTED_REPOSITORY}/contents/protocol/CONTINUUM.md?ref={source}",
                       "-H", "Accept: application/vnd.github.raw+json")
@@ -56,14 +55,17 @@ def read_comments(repository, number, pr_author):
         items = json.loads(command("gh", "api", f"repos/{repository}/issues/{number}/comments"
                                    f"?per_page=100&sort=created&direction=desc&page={page}"))
         if not items:
-            return list(reversed(newest_first)), False
+            return list(reversed(newest_first))
         for item in items:
-            comment = {"body": item.get("body") or "", "author": (item.get("user") or {}).get("login", ""),
+            comment = {"id": item.get("id"), "body": item.get("body") or "",
+                       "author": (item.get("user") or {}).get("login", ""),
                        "author_association": item.get("author_association", "")}
             newest_first.append(comment)
-            record = c.parse_comment(comment["body"], comment["author"], comment["author_association"], pr_author)
+            record = c.parse_comment(comment["body"], comment["author"],
+                                     comment["author_association"], pr_author,
+                                     comment["id"])
             if record and record["action"] == "recover":
-                return list(reversed(newest_first)), True
+                return list(reversed(newest_first))
         page += 1
 
 
@@ -71,8 +73,8 @@ def state_for(url, pr=None):
     repository, number = identity(url)
     pr = pr or read_pr(url)
     pinned_protocol(pr)
-    comments, recovery_boundary = read_comments(repository, number, pr["user"]["login"])
-    state = c.reconstruct(comments, pr["user"]["login"], recovery_boundary)
+    comments = read_comments(repository, number, pr["user"]["login"])
+    state = c.reconstruct(comments, pr["user"]["login"])
     return repository, number, pr, state
 
 
@@ -80,45 +82,49 @@ def status(args):
     _, _, pr, state = state_for(args.pr)
     c.require(not state.conflict, "conflicting live claims; owner recovery required")
     print(json.dumps({"open": pr["state"] == "open", "draft": pr["draft"],
-                      "head_sha": pr["head"]["sha"], "active_runs": sorted(state.active)}, separators=(",", ":")))
+                      "head_sha": pr["head"]["sha"], "active_claims": sorted(state.active)}, separators=(",", ":")))
 
 
 def post(repository, number, body):
-    command("gh", "api", f"repos/{repository}/issues/{number}/comments", "--method", "POST", "-f", "body=" + body)
+    result = command("gh", "api", f"repos/{repository}/issues/{number}/comments",
+                     "--method", "POST", "-f", "body=" + body)
+    return json.loads(result)
 
 
-def assert_posted(args, run, released=False, released_sha=None):
+def assert_posted(args, claim_id=None, released=False, released_sha=None):
     _, _, pr, state = state_for(args.pr)
     c.require(not state.conflict, "a competing record appeared; stop all writes")
     if released:
         c.require(not state.active and pr["head"]["sha"] == released_sha,
                   "release did not settle at the current PR head; stop and reconcile")
     else:
-        c.require(set(state.active) == {run}, "claim did not become the sole active lease; stop all writes")
+        c.require(set(state.active) == {str(claim_id)}, "claim did not become the sole active lease; stop all writes")
 
 
 def claim(args):
     repository, number, pr, state = state_for(args.pr)
     c.require(pr["state"] == "open" and pr["draft"], "claim requires an open Draft PR")
     c.require(not state.conflict and not state.active, "another or conflicting lease is active")
-    run = c.new_run()
-    body = c.render("claim", run)
-    post(repository, number, body)
-    assert_posted(args, run)
-    print(run)
+    comment = post(repository, number, c.render("claim"))
+    c.require(isinstance(comment, dict) and comment.get("id") is not None,
+              "GitHub claim response did not include its comment ID")
+    claim_id = str(comment["id"])
+    assert_posted(args, claim_id=claim_id)
+    print(claim_id)
 
 
 def release(args):
     repository, number, pr, state = state_for(args.pr)
-    c.require(pr["state"] == "open" and pr["draft"] and not state.conflict and set(state.active) == {args.run},
-              "release requires this run's sole active lease on an open Draft PR")
+    c.require(pr["state"] == "open" and pr["draft"] and not state.conflict and
+              set(state.active) == {args.claim},
+              "release requires this claim's sole active lease on an open Draft PR")
     c.require(command("git", "branch", "--show-current").strip() == pr["head"]["ref"],
               "local branch differs from PR head ref")
     sha = command("git", "rev-parse", "HEAD").strip()
     c.require(sha == pr["head"]["sha"], "local HEAD differs from shared PR HEAD; push and reread before release")
     c.require(not command("git", "status", "--porcelain"), "release requires a clean worktree")
-    post(repository, number, c.render("release", args.run, sha=sha))
-    assert_posted(args, args.run, released=True, released_sha=sha)
+    post(repository, number, c.render("release", claim_id=args.claim, sha=sha))
+    assert_posted(args, claim_id=args.claim, released=True, released_sha=sha)
     print(sha)
 
 
@@ -141,7 +147,7 @@ def main():
         item = sub.add_parser(name)
         item.add_argument("--pr", required=True)
         if name == "release":
-            item.add_argument("--run", required=True)
+            item.add_argument("--claim", required=True)
         item.set_defaults(function=function)
     item = sub.add_parser("recover")
     item.add_argument("--pr", required=True)
