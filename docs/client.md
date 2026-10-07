@@ -49,9 +49,13 @@ python3 scripts/continuum.py claim --pr https://github.com/owner/project/pull/42
 ```
 
 The command prints the created GitHub comment ID. That ID is the lease
-identity. Before product writes, use the PR's exact head branch and verify its
-shared HEAD. Implement, test, commit, and push using the repository's ordinary
-workflow.
+identity. Before product writes, inspect the current worktree, including
+untracked files. If it is clean and the PR branch is not checked out elsewhere,
+fetch and check out the exact PR head. If switching would disturb local work or
+the branch is already checked out elsewhere, preserve that state and use an
+isolated worktree at the exact PR head. A different starting branch alone is
+not a reason to stop. Implement, test, commit, and push using the repository's
+ordinary workflow.
 
 After the shared PR head matches the clean local HEAD, release with the claim
 comment ID:
@@ -60,9 +64,11 @@ comment ID:
 python3 scripts/continuum.py release --pr https://github.com/owner/project/pull/42 --claim <claim-comment-id>
 ```
 
-The release contains the full 40-character HEAD SHA and is reread before
-success is reported. Then use GitHub's native Ready transition, review, checks,
-and human-authorized merge.
+The client requires a clean worktree and local HEAD equal to the PR's reread
+shared HEAD after push. It does not require a particular local branch name. The
+release contains the full 40-character HEAD SHA and is reread before success
+is reported. Then use GitHub's native Ready transition, review, checks, and
+human-authorized merge.
 
 ## Conflicts and abandoned leases
 

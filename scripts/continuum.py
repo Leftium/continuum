@@ -118,8 +118,6 @@ def release(args):
     c.require(pr["state"] == "open" and pr["draft"] and not state.conflict and
               set(state.active) == {args.claim},
               "release requires this claim's sole active lease on an open Draft PR")
-    c.require(command("git", "branch", "--show-current").strip() == pr["head"]["ref"],
-              "local branch differs from PR head ref")
     sha = command("git", "rev-parse", "HEAD").strip()
     c.require(sha == pr["head"]["sha"], "local HEAD differs from shared PR HEAD; push and reread before release")
     c.require(not command("git", "status", "--porcelain"), "release requires a clean worktree")

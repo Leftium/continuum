@@ -39,9 +39,10 @@ commit before writing.
 
    If GitHub requires a differing head before it permits a Draft PR, an empty commit is sufficient.
 3. Read the PR, pinned protocol, current lease, and push destination. While the PR is Draft and no lease is active, post a whole-comment `claim` record. Its GitHub comment ID is the lease identity.
-4. Implement, verify, commit, and push under that lease. Commits need no coordination events.
-5. Reread the pushed head, then post `release <claim-comment-id> <full-head-sha>`.
-6. Mark the PR Ready for native GitHub review and checks. A human authorizes merge.
+4. Inspect the current worktree. If clean and the PR branch is not checked out elsewhere, fetch and check out its exact head. Otherwise preserve local work and use an isolated worktree at that head. A different starting branch alone is not a reason to stop.
+5. Implement, verify, commit, and push under that lease. Commits need no coordination events.
+6. Reread the pushed head, then post `release <claim-comment-id> <full-head-sha>` when clean local HEAD matches it.
+7. Mark the PR Ready for native GitHub review and checks. A human authorizes merge.
 
 Each coordination comment body is exactly `claim` or
 `release <claim-comment-id> <full-head-sha>`, with no Markdown fence.

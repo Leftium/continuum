@@ -121,6 +121,24 @@ class LeaseRecordTests(unittest.TestCase):
         post.assert_called_once_with("owner/project", 42, "claim")
         verify.assert_called_once_with(args, claim_id=CLAIM)
 
+    def test_release_uses_matching_clean_head_without_branch_name_check(self):
+        args = type("Args", (), {"pr": "https://github.com/owner/project/pull/42", "claim": CLAIM})()
+        active = c.State(active={CLAIM: {"action": "claim", "claim_id": CLAIM}})
+        settled = c.State()
+        pr = {"state": "open", "draft": True, "head": {"sha": SHA}}
+        output = StringIO()
+        with patch.object(client, "state_for", side_effect=[("owner/project", 42, pr, active),
+                                                               ("owner/project", 42, pr, settled)]), \
+                patch.object(client, "command", side_effect=[SHA + "\n", ""]) as command, \
+                patch.object(client, "post") as post, \
+                patch.object(client, "assert_posted") as verify, redirect_stdout(output):
+            client.release(args)
+        self.assertEqual(output.getvalue(), SHA + "\n")
+        self.assertEqual([call.args for call in command.call_args_list], [
+            ("git", "rev-parse", "HEAD"), ("git", "status", "--porcelain")])
+        post.assert_called_once_with("owner/project", 42, f"release {CLAIM} {SHA}")
+        verify.assert_called_once_with(args, claim_id=CLAIM, released=True, released_sha=SHA)
+
 
 if __name__ == "__main__":
     unittest.main()
