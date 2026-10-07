@@ -42,8 +42,11 @@ def pinned_protocol(pr):
     source = pins[0]
     content = command("gh", "api", f"repos/{TRUSTED_REPOSITORY}/contents/protocol/CONTINUUM.md?ref={source}",
                       "-H", "Accept: application/vnd.github.raw+json")
-    c.require(content.startswith(f"---\ncontinuum: {c.VERSION}\nartifact: protocol/CONTINUUM.md\n---\n"),
-              "pinned source is not the supported canonical protocol")
+    match = re.match(r"---\ncontinuum: ([0-9]+)\.([0-9]+)\.([0-9]+)\nartifact: protocol/CONTINUUM\.md\n---\n", content)
+    current = tuple(map(int, c.VERSION.split(".")))
+    c.require(match is not None and tuple(map(int, match.groups()))[:2] == current[:2] and
+              tuple(map(int, match.groups())) <= current,
+              "pinned source is not a supported canonical protocol version")
     return source
 
 

@@ -187,5 +187,21 @@ class BootstrapLabelTests(unittest.TestCase):
         apply.assert_called_once_with("owner/project", 42)
 
 
+class ProtocolPinTests(unittest.TestCase):
+    def test_client_accepts_an_earlier_patch_pin_in_the_same_minor_line(self):
+        args = {"body": "Continuum: Leftium/continuum@" + "a" * 40}
+        protocol = "---\ncontinuum: 0.6.0\nartifact: protocol/CONTINUUM.md\n---\n"
+        with patch.object(client, "command", return_value=protocol):
+            self.assertEqual(client.pinned_protocol(args), "a" * 40)
+
+    def test_client_rejects_other_minor_lines_and_future_patches(self):
+        args = {"body": "Continuum: Leftium/continuum@" + "a" * 40}
+        for version in ("0.5.9", "0.6.2"):
+            protocol = f"---\ncontinuum: {version}\nartifact: protocol/CONTINUUM.md\n---\n"
+            with self.subTest(version=version), patch.object(client, "command", return_value=protocol):
+                with self.assertRaises(c.Invalid):
+                    client.pinned_protocol(args)
+
+
 if __name__ == "__main__":
     unittest.main()
