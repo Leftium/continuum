@@ -16,11 +16,11 @@ with no Python package dependencies.
 ## Supported protocol
 
 The supported stable release is
-[v0.6.0](https://github.com/Leftium/continuum/releases/tag/v0.6.0). Resolve it
+[v0.6.1](https://github.com/Leftium/continuum/releases/tag/v0.6.1). Resolve it
 to its exact commit before using the protocol. New PRs pin it as
 `Continuum: Leftium/continuum@<40-character-commit>`. Read the [canonical
-protocol](https://github.com/Leftium/continuum/blob/v0.6.0/protocol/CONTINUUM.md)
-and [matching client instructions](https://github.com/Leftium/continuum/blob/v0.6.0/docs/client.md)
+protocol](https://github.com/Leftium/continuum/blob/v0.6.1/protocol/CONTINUUM.md)
+and [matching client instructions](https://github.com/Leftium/continuum/blob/v0.6.1/docs/client.md)
 from that exact commit.
 
 This site is evergreen guidance. The published release and version-pinned

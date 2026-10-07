@@ -95,16 +95,18 @@ class LeaseRecordTests(unittest.TestCase):
         self.assertFalse(state.conflict)
         self.assertEqual(state.active, {})
 
-    def test_client_stops_pagination_at_latest_recovery_and_preserves_comment_ids(self):
+    def test_client_keeps_comments_after_latest_recovery_in_api_order(self):
         recovery = {"id": 8, "body": "recover | All writers stopped; work inventoried",
                     "user": {"login": "leftium"}, "author_association": "OWNER"}
         claim = {"id": 9, "body": "claim", "user": {"login": "writer"},
                  "author_association": "MEMBER"}
-        with patch.object(client, "command", return_value=json.dumps([claim, recovery])) as command:
-            comments = client.read_comments("owner/project", 42, "author")
+        before = {"id": 7, "body": "claim", "user": {"login": "writer"},
+                  "author_association": "MEMBER"}
+        with patch.object(client, "command", side_effect=[json.dumps([before, recovery, claim]), "[]"]) as command:
+            comments = client.read_comments("owner/project", 42)
         self.assertEqual([item["id"] for item in comments], [8, 9])
         self.assertEqual(comments[0]["body"], recovery["body"])
-        command.assert_called_once()
+        self.assertEqual(command.call_count, 2)
 
     def test_only_repository_owner_can_recover(self):
         with self.assertRaises(c.Invalid):
@@ -156,6 +158,51 @@ class LeaseRecordTests(unittest.TestCase):
             ("git", "rev-parse", "HEAD"), ("git", "status", "--porcelain")])
         post.assert_called_once_with("owner/project", 42, f"release {CLAIM} {SHA}")
         verify.assert_called_once_with(args, claim_id=CLAIM, released=True, released_sha=SHA)
+
+
+class BootstrapLabelTests(unittest.TestCase):
+    def test_existing_label_is_added_with_additive_labels_endpoint(self):
+        with patch.object(client, "api", return_value={"name": "continuum"}) as api, \
+                patch.object(client, "command", return_value="[]") as command:
+            self.assertTrue(client.apply_continuum_label("owner/project", 42))
+        api.assert_called_once_with("repos/owner/project/labels/continuum")
+        command.assert_called_once_with(
+            "gh", "api", "repos/owner/project/issues/42/labels",
+            "--method", "POST", "-f", "labels[]=continuum")
+
+    def test_missing_or_unreadable_label_does_not_block_bootstrap(self):
+        with patch.object(client, "api", side_effect=c.Invalid("not found")) as api, \
+                patch.object(client, "command") as command:
+            self.assertFalse(client.apply_continuum_label("owner/project", 42))
+        api.assert_called_once_with("repos/owner/project/labels/continuum")
+        command.assert_not_called()
+
+    def test_label_application_failure_does_not_block_bootstrap(self):
+        with patch.object(client, "api", return_value={"name": "continuum"}), \
+                patch.object(client, "command", side_effect=c.Invalid("forbidden")):
+            self.assertFalse(client.apply_continuum_label("owner/project", 42))
+
+    def test_label_command_accepts_pr_url_and_swallows_lookup_failure(self):
+        args = type("Args", (), {"pr": "https://github.com/owner/project/pull/42"})()
+        with patch.object(client, "apply_continuum_label", return_value=False) as apply:
+            client.label(args)
+        apply.assert_called_once_with("owner/project", 42)
+
+
+class ProtocolPinTests(unittest.TestCase):
+    def test_client_accepts_an_earlier_patch_pin_in_the_same_minor_line(self):
+        args = {"body": "Continuum: Leftium/continuum@" + "a" * 40}
+        protocol = "---\ncontinuum: 0.6.0\nartifact: protocol/CONTINUUM.md\n---\n"
+        with patch.object(client, "command", return_value=protocol):
+            self.assertEqual(client.pinned_protocol(args), "a" * 40)
+
+    def test_client_rejects_other_minor_lines_and_future_patches(self):
+        args = {"body": "Continuum: Leftium/continuum@" + "a" * 40}
+        for version in ("0.5.9", "0.6.2"):
+            protocol = f"---\ncontinuum: {version}\nartifact: protocol/CONTINUUM.md\n---\n"
+            with self.subTest(version=version), patch.object(client, "command", return_value=protocol):
+                with self.assertRaises(c.Invalid):
+                    client.pinned_protocol(args)
 
 
 if __name__ == "__main__":

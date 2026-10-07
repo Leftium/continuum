@@ -1,6 +1,6 @@
 # Using the reference client
 
-Continuum 0.6 uses Python 3.9+, Git, and authenticated `gh`. The client does
+Continuum 0.6.1 uses Python 3.9+, Git, and authenticated `gh`. The client does
 not install files in a target repository. Existing PRs remain on the exact
 protocol version pinned in each PR.
 
@@ -27,15 +27,19 @@ a different head commit before it allows a Draft PR, an empty commit is enough:
 git switch -c feature-name origin/main
 git commit --allow-empty -m 'chore: start Continuum PR'
 git push -u origin feature-name
-gh pr create --draft --base main --head feature-name \
+pr_url=$(gh pr create --draft --base main --head feature-name \
   --title 'Implement the adopted change' \
-  --body $'Describe the work here.\n\nContinuum: Leftium/continuum@<40-character-commit>'
+  --body $'Describe the work here.\n\nContinuum: Leftium/continuum@<40-character-commit>')
+python3 scripts/continuum.py label --pr "$pr_url"
 ```
 
-Replace the placeholder with the exact source commit. PR creation and planning
-leave coordination comments empty; do not claim until the implementation
-writer is about to make product-repository changes. Inspect the current
-worktree and establish the PR's exact target workspace before that claim.
+Replace the placeholder with the exact source commit. The label command adds
+the existing `continuum` label when available. It never creates the label, and
+lookup or application errors do not affect PR creation. The label is discovery
+metadata only. PR creation and planning leave coordination comments empty; do
+not claim until the implementation writer is about to make product-repository
+changes. Inspect the current worktree and establish the PR's exact target
+workspace before that claim.
 
 ```sh
 python3 scripts/continuum.py status --pr https://github.com/owner/project/pull/42

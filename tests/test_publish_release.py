@@ -20,7 +20,7 @@ import continuum as client
 
 class ReleaseHelperTests(unittest.TestCase):
     def test_semver_reads_canonical_front_matter(self):
-        self.assertEqual(publisher.version("---\ncontinuum: 0.6.0\nartifact: protocol\n"), (0, 6, 0))
+        self.assertEqual(publisher.version("---\ncontinuum: 0.6.1\nartifact: protocol\n"), (0, 6, 1))
         with self.assertRaises(SystemExit):
             publisher.version("continuum: latest")
 

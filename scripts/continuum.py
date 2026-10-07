@@ -42,30 +42,33 @@ def pinned_protocol(pr):
     source = pins[0]
     content = command("gh", "api", f"repos/{TRUSTED_REPOSITORY}/contents/protocol/CONTINUUM.md?ref={source}",
                       "-H", "Accept: application/vnd.github.raw+json")
-    c.require(content.startswith(f"---\ncontinuum: {c.VERSION}\nartifact: protocol/CONTINUUM.md\n---\n"),
-              "pinned source is not the supported canonical protocol")
+    match = re.match(r"---\ncontinuum: ([0-9]+)\.([0-9]+)\.([0-9]+)\nartifact: protocol/CONTINUUM\.md\n---\n", content)
+    current = tuple(map(int, c.VERSION.split(".")))
+    c.require(match is not None and tuple(map(int, match.groups()))[:2] == current[:2] and
+              tuple(map(int, match.groups())) <= current,
+              "pinned source is not a supported canonical protocol version")
     return source
 
 
-def read_comments(repository, number, pr_author):
-    """Read newest first and stop at the latest owner recovery boundary."""
-    newest_first = []
+def read_comments(repository, number):
+    """Read comments in API order, retaining only records after latest recovery."""
+    records = []
     page = 1
     while True:
         items = json.loads(command("gh", "api", f"repos/{repository}/issues/{number}/comments"
-                                   f"?per_page=100&sort=created&direction=desc&page={page}"))
+                                   f"?per_page=100&page={page}"))
         if not items:
-            return list(reversed(newest_first))
+            return records
         for item in items:
             comment = {"id": item.get("id"), "body": item.get("body") or "",
                        "author": (item.get("user") or {}).get("login", ""),
                        "author_association": item.get("author_association", "")}
-            newest_first.append(comment)
-            record = c.parse_comment(comment["body"], comment["author"],
-                                     comment["author_association"], pr_author,
-                                     comment["id"])
-            if record and record["action"] == "recover":
-                return list(reversed(newest_first))
+            if (re.fullmatch(r"recover \| ([^\r\n|]+)", comment["body"]) and
+                    comment["body"].split("|", 1)[1].strip() and
+                    comment["author_association"] == "OWNER"):
+                records = [comment]
+            else:
+                records.append(comment)
         page += 1
 
 
@@ -73,7 +76,7 @@ def state_for(url, pr=None):
     repository, number = identity(url)
     pr = pr or read_pr(url)
     pinned_protocol(pr)
-    comments = read_comments(repository, number, pr["user"]["login"])
+    comments = read_comments(repository, number)
     state = c.reconstruct(comments, pr["user"]["login"])
     return repository, number, pr, state
 
@@ -89,6 +92,25 @@ def post(repository, number, body):
     result = command("gh", "api", f"repos/{repository}/issues/{number}/comments",
                      "--method", "POST", "-f", "body=" + body)
     return json.loads(result)
+
+
+def apply_continuum_label(repository, number):
+    """Apply the existing discovery label when available; never block bootstrap."""
+    try:
+        api(f"repos/{repository}/labels/continuum")
+    except (c.Invalid, json.JSONDecodeError, OSError):
+        return False
+    try:
+        command("gh", "api", f"repos/{repository}/issues/{number}/labels",
+                "--method", "POST", "-f", "labels[]=continuum")
+    except (c.Invalid, json.JSONDecodeError, OSError):
+        return False
+    return True
+
+
+def label(args):
+    repository, number = identity(args.pr)
+    apply_continuum_label(repository, number)
 
 
 def assert_posted(args, claim_id=None, released=False, released_sha=None):
@@ -147,6 +169,9 @@ def main():
         if name == "release":
             item.add_argument("--claim", required=True)
         item.set_defaults(function=function)
+    item = sub.add_parser("label", help="best-effort apply an existing continuum label")
+    item.add_argument("--pr", required=True)
+    item.set_defaults(function=label)
     item = sub.add_parser("recover")
     item.add_argument("--pr", required=True)
     item.add_argument("--confirmation", required=True)
