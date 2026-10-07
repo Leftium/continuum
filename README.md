@@ -13,15 +13,13 @@ Read the canonical [0.5 protocol](protocol/CONTINUUM.md) and [reference client
 instructions](docs/client.md). The client uses Python 3.9+, Git, and
 authenticated `gh`. It does not install files in a target repository.
 
-Continuum 0.5 is an incompatible development version until its reviewed version
-bump reaches `main`; the main-branch workflow then publishes that version at the
-merge commit. Existing 0.4 PRs keep their exact pinned 0.4.1 interpreter and
-history. New work uses 0.5 only after that stable release is available.
+Continuum 0.5 is incompatible with 0.4. Existing 0.4 PRs keep their exact
+pinned interpreter and history. New work uses the published stable 0.5 release.
 
 The public documentation site at
-[leftium.github.io/continuum](https://leftium.github.io/continuum/) retains the
-published 0.4 guidance until its documentation work is updated separately. See
-[site maintenance](docs/site/maintaining.md) for local builds and Pages setup.
+[leftium.github.io/continuum](https://leftium.github.io/continuum/) documents the
+stable 0.5 workflow. See [site maintenance](docs/site/maintaining.md) for local
+builds and Pages setup.
 
 ## Starting work
 
