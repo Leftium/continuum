@@ -32,19 +32,26 @@ Read the [pinned protocol](https://github.com/Leftium/continuum/blob/c833afbd821
 and [pinned client instructions](https://github.com/Leftium/continuum/blob/c833afbd8218c74427526eddfdafcd13c779d3e8/docs/client.md)
 before writing.
 
-1. Read the PR, pinned protocol, selected-base policy, blockers, current lease, and push destination.
-2. While the PR is Draft and no lease is active, post one claim with a fresh UUIDv4 run identity.
-3. Implement, verify, commit, and push under that lease. Commits need no coordination events.
-4. Reread the pushed head, then post one release with the same run identity and exact full head SHA.
-5. Mark the PR Ready for native GitHub review and checks. A human authorizes merge.
+1. Read the selected-base policy and blockers, then create a fresh work branch and open a Draft PR with an ordinary description.
+2. Add the immutable protocol pin as the PR's only Continuum contract, using this exact form:
+
+   ```text
+   Continuum: 0.5.0; protocol source: Leftium/continuum@<40-character-commit>:protocol/CONTINUUM.md
+   ```
+
+   If GitHub requires a differing head before it permits a Draft PR, an empty commit is sufficient.
+3. Read the PR, pinned protocol, current lease, and push destination. While the PR is Draft and no lease is active, post one claim with a fresh UUIDv4 run identity.
+4. Implement, verify, commit, and push under that lease. Commits need no coordination events.
+5. Reread the pushed head, then post one release with the same run identity and exact full head SHA.
+6. Mark the PR Ready for native GitHub review and checks. A human authorizes merge.
 
 Each coordination comment contains one visible record:
 
-```text
+```continuum
 claim <run-uuid>
 ```
 
-```text
+```continuum
 release <run-uuid> <full-head-sha>
 ```
 
