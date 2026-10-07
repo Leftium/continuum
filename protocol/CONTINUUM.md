@@ -48,6 +48,14 @@ ordinary comment.
 6. Mark the PR Ready. GitHub reviews, checks, and a human-authorized merge
    finish the work.
 
+Creating or planning a Draft PR does not claim a lease; zero coordination
+comments is valid. The writer claims immediately before making product-
+repository changes. Do not infer ownership transfer from PR creation, planning,
+handoff, branch ownership, or worktree ownership. If a different writer will
+continue, the current writer releases first and the next writer makes a fresh
+claim before writing. There is no leading release: every release names an
+existing active claim comment ID.
+
 Claims are exclusive. A claim while another is active or competing live claims
 block product writes. A release clears only its matching sole active claim. A
 stale, wrong, or unmatched release never clears another claim. Malformed

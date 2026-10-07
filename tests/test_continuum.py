@@ -36,6 +36,24 @@ class LeaseRecordTests(unittest.TestCase):
                     record("```continuum\\nclaim\\n```", OTHER, **MEMBER)]
         self.assertEqual(c.reconstruct(comments).active, {})
 
+    def test_bootstrap_and_planning_can_have_zero_coordination_comments(self):
+        state = c.reconstruct([])
+        self.assertFalse(state.conflict)
+        self.assertEqual(state.active, {})
+
+    def test_leading_release_conflicts_and_writer_handoff_needs_fresh_claim(self):
+        leading = c.reconstruct([record(f"release {CLAIM} {SHA}", OTHER, **MEMBER)])
+        self.assertTrue(leading.conflict)
+        self.assertEqual(leading.active, {})
+
+        handed_off = c.reconstruct([
+            record("claim", CLAIM, **MEMBER),
+            record(f"release {CLAIM} {SHA}", OTHER, **MEMBER),
+            record("claim", OTHER, **OWNER),
+        ])
+        self.assertFalse(handed_off.conflict)
+        self.assertEqual(set(handed_off.active), {OTHER})
+
     def test_claim_release_uses_comment_id_and_keeps_full_sha(self):
         comments = [record("claim", CLAIM, **MEMBER),
                     record(f"release {CLAIM} {SHA}", OTHER, **MEMBER)]

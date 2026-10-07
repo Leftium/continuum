@@ -25,11 +25,14 @@ builds and Pages setup.
 
 ## Starting work
 
-Read accepted-base policy and project blockers. Claim the Draft PR before
-product writes, implement and verify under that lease, then release with the
-exact shared HEAD SHA. Mark the PR Ready for native GitHub review and checks.
-Inspect the current worktree first: switch to the exact PR head if it is clean,
-or preserve local work in a separate worktree. Merge requires human authority.
+Inspect the current worktree first. Switch to the exact PR head if it is clean,
+or preserve local work in a separate worktree. Read policy from the selected
+base/head after moving. Planning and Draft PR creation leave coordination
+comments empty; the implementation writer claims immediately before product
+writes. Implement and verify under that lease, release with the exact shared
+HEAD SHA, and mark the PR Ready for native GitHub review and checks. A writer
+handoff requires release followed by a fresh claim. Merge requires human
+authority.
 
 Use `python3 scripts/continuum.py status --pr <full-pr-url>` to inspect current
 lease state. See the [client guide](docs/client.md) for claim, release, and

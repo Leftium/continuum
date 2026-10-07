@@ -32,6 +32,13 @@ human authority.
 Read the protocol and client instructions from the exact resolved release
 commit before writing.
 
+Planning and Draft PR creation leave coordination comments empty. In a Chat to
+T3 handoff, Chat creates or plans the Draft PR without claiming; T3 claims when
+implementation starts and releases when finished. Do not infer lease transfer
+from PR creation, planning, branch ownership, or worktree ownership. A writer
+handoff requires the current writer to release, then the next writer to make a
+fresh claim before product-repository writes.
+
 1. Create a fresh work branch from the selected base, then read its policy and blockers. Open a Draft PR with an ordinary description.
 2. Add the immutable protocol pin as the PR's only Continuum contract, using this exact form:
 

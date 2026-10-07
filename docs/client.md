@@ -32,8 +32,10 @@ gh pr create --draft --base main --head feature-name \
   --body $'Describe the work here.\n\nContinuum: Leftium/continuum@<40-character-commit>'
 ```
 
-Replace the placeholder with the exact source commit. Inspect the current
-worktree and establish the PR's exact target workspace before claiming it.
+Replace the placeholder with the exact source commit. PR creation and planning
+leave coordination comments empty; do not claim until the implementation
+writer is about to make product-repository changes. Inspect the current
+worktree and establish the PR's exact target workspace before that claim.
 
 ```sh
 python3 scripts/continuum.py status --pr https://github.com/owner/project/pull/42
@@ -69,6 +71,10 @@ python3 scripts/continuum.py claim --pr https://github.com/owner/project/pull/42
 The command prints the created GitHub comment ID. That ID is the lease
 identity. Implement, test, commit, and push using the repository's ordinary
 workflow.
+
+Planning, branch ownership, and worktree ownership do not transfer a lease. If
+another writer takes over after a claim, the current writer releases its claim
+and the next writer makes a fresh claim before product-repository writes.
 
 After the shared PR head matches the clean local HEAD, release with the claim
 comment ID:
