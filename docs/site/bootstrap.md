@@ -1,81 +1,52 @@
 # Start a project
 
 Use Continuum when implementation is ready to start. Keep deferred work in
-ordinary issues or planning docs. Bootstrap creates a work branch and PR, so it
-requires human adoption of the goal and permission to perform that work.
+ordinary issues or planning docs. Bootstrap creates a work branch and Draft PR,
+so it requires human adoption of the goal and permission to perform that work.
 
 ## For the human
 
-Agree on the goal, scope, acceptance criteria and verification with your coding
-agent. Identify the trusted Continuum source repository, the target repository
-and base branch, and the writable head repository. Read selected-base project
-instructions and resolve ordinary blockers before bootstrap.
+Agree on the goal, scope, and acceptance criteria with your coding agent.
+Identify the target repository and base branch, read their policy and blockers,
+and confirm the authorized push destination.
 
 The supported stable release is
-[v0.4.0](https://github.com/Leftium/continuum/releases/tag/v0.4.0) at
-`76fed3f2fb03df0d7121fc8e026644431de16203`. Use an explicitly trusted local
-checkout of that version for the reference client. Review code before executing
-it; do not pipe downloaded scripts into a shell.
+[v0.5.0](https://github.com/Leftium/continuum/releases/tag/v0.5.0) at
+`c833afbd8218c74427526eddfdafcd13c779d3e8`. Use the reference client from a
+trusted checkout of that release. Review code before executing it.
 
 You can give your agent this starting instruction:
 
 ```text
 Use Continuum for the agreed work. Trust Leftium/continuum as the protocol
-source and use supported stable 0.4.0. Read the selected base's project policy
-and blockers, then read protocol/CONTINUUM.md at exact source commit
-76fed3f2fb03df0d7121fc8e026644431de16203. Follow that pinned protocol and the
-matching client instructions. Preserve my existing work. Bootstrap only when
-implementation starts, acquire ownership before writing, and stop for unclear
-authority or conflicting state. Merge and publication need separate authority.
+source and use stable 0.5.0. Read protocol/CONTINUUM.md at exact source commit
+c833afbd8218c74427526eddfdafcd13c779d3e8, plus the selected base's policy and
+blockers. Bootstrap a Draft PR only when implementation starts. Claim its
+write lease before product changes. Preserve existing work and stop if authority
+or coordination state is unclear. Merge requires separate human authority.
 ```
-
-The current development tree prepares 0.4.1. Publication requires separate
-human authorization after merge; until then, use the published 0.4.0 pin and
-matching client above. See the [release preparation record](https://github.com/Leftium/continuum/blob/main/docs/release.md).
 
 ## For the coding agent
 
-Read the [pinned protocol](https://github.com/Leftium/continuum/blob/76fed3f2fb03df0d7121fc8e026644431de16203/protocol/CONTINUUM.md)
-and [pinned client instructions](https://github.com/Leftium/continuum/blob/76fed3f2fb03df0d7121fc8e026644431de16203/docs/client.md)
-before any writes. The summary below is an entry point; the pinned source owns
-the full lifecycle and recovery rules.
+Read the [pinned protocol](https://github.com/Leftium/continuum/blob/c833afbd8218c74427526eddfdafcd13c779d3e8/protocol/CONTINUUM.md)
+and [pinned client instructions](https://github.com/Leftium/continuum/blob/c833afbd8218c74427526eddfdafcd13c779d3e8/docs/client.md)
+before writing.
 
-1. Confirm adoption, selected-base instructions, blockers and the push destination.
-   Inspect both staged and unstaged changes. Preserve unrelated work; the
-   reference bootstrap requires a clean workspace.
-2. Prepare the seven-field plan JSON and recovery journal outside the worktree.
-   The plan contains `goal`, `scope`, `acceptance`, `plan`, `verification`,
-   `changes` and `context`.
-3. Run bootstrap from a trusted client checkout. Stable discovery must resolve
-   the supported release to an exact commit and validate its protocol metadata.
-   Missing or unsupported releases stop bootstrap.
-4. Verify the created Draft PR's contract and exact head, then claim a fresh
-   run-scoped write lease before implementation or controlled-body edits.
-5. Verify and push coherent checkpoints. Release ownership before a normal
-   handoff. Ready requires actual verification and then independent review;
-   cleanup and merge have separate gates.
+1. Read the PR, pinned protocol, selected-base policy, blockers, current lease, and push destination.
+2. While the PR is Draft and no lease is active, post one claim with a fresh UUIDv4 run identity.
+3. Implement, verify, commit, and push under that lease. Commits need no coordination events.
+4. Reread the pushed head, then post one release with the same run identity and exact full head SHA.
+5. Mark the PR Ready for native GitHub review and checks. A human authorizes merge.
 
-For same-repository work, the invocation looks like this after you substitute
-the adopted repository, plan paths and actual acceptance reference:
+Each coordination comment contains one visible record:
 
-```sh
-python3 /trusted/continuum/scripts/continuum.py bootstrap \
-  --repo owner/project --base main --head-repo owner/project --remote origin \
-  --plan /outside/plan.json --journal /outside/bootstrap.json \
-  --title 'Implement the adopted change' --start-now \
-  --accepted-policy 'Actual human adoption and base-policy/blocker decision reference' \
-  --label skip --label-backfill skip
+```text
+claim <run-uuid>
 ```
 
-`origin` must point to the authorized writable repository. Forks use the
-appropriate head repository and remote. Label creation is optional and needs
-explicit consent; skipping labels does not change coordination authority.
+```text
+release <run-uuid> <full-head-sha>
+```
 
-Bootstrap creates a temporary discovery pointer while preserving existing
-`AGENTS.md` instructions. Version 0.4 needs no installed root protocol,
-`PR-PLAN.md` or finalizer in the target repository.
-
-If the head, target, contract or ownership changes unexpectedly, stop writes and
-follow the pinned recovery procedure. A timeout is not proof of success, and
-reopening a PR does not restore ownership. Existing 0.3 work follows the
-[migration boundary in the pinned protocol](https://github.com/Leftium/continuum/blob/76fed3f2fb03df0d7121fc8e026644431de16203/protocol/CONTINUUM.md#version-03-migration-boundary).
+For additional setup and client details, see the
+[reference client guide](https://github.com/Leftium/continuum/blob/c833afbd8218c74427526eddfdafcd13c779d3e8/docs/client.md).
