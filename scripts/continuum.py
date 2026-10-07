@@ -10,7 +10,7 @@ from urllib.parse import quote
 import continuum_core as c
 
 TRUSTED_REPOSITORY = "Leftium/continuum"
-PIN = re.compile(r"Continuum: 0\.5\.0; protocol source: Leftium/continuum@([0-9a-f]{40}):protocol/CONTINUUM\.md")
+PIN = re.compile(r"Continuum: " + re.escape(c.VERSION) + r"; protocol source: Leftium/continuum@([0-9a-f]{40}):protocol/CONTINUUM\.md")
 
 
 def command(*args):

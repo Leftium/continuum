@@ -74,9 +74,7 @@ def main():
             raise SystemExit("existing release tag does not point to this merge SHA")
         print("Expected stable release already exists")
         return
-    if not existing_tag:
-        run("git", "tag", "-a", tag, sha, "-m", tag)
-        run("git", "push", "origin", "refs/tags/" + tag)
+    # gh creates a missing tag at --target SHA; no local tag identity/config is needed.
     run("gh", "release", "create", tag, "--target", sha, "--title", tag, "--generate-notes")
 
 
