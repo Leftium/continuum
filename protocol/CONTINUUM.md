@@ -1,5 +1,5 @@
 ---
-continuum: 0.6.0
+continuum: 0.6.1
 artifact: protocol/CONTINUUM.md
 ---
 
@@ -14,6 +14,13 @@ The client trusts `Leftium/continuum` and fetches its canonical
 `protocol/CONTINUUM.md`. The fetched file must declare the supported version.
 Do not add another contract, digest, plan mirror, or target-repository file.
 Project policy and human adoption still govern work.
+
+When bootstrapping a PR, the reference client may apply the target repository's
+existing `continuum` label on a best-effort basis. It never creates that label,
+and a missing label, lookup failure, permission failure, or application failure
+does not block bootstrap. Applying it must preserve other labels. The label is
+discovery metadata only; it grants no workflow authority and does not affect
+protocol pins, leases, Draft/Ready state, review, or merge.
 
 ## Lease records
 

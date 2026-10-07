@@ -91,6 +91,25 @@ def post(repository, number, body):
     return json.loads(result)
 
 
+def apply_continuum_label(repository, number):
+    """Apply the existing discovery label when available; never block bootstrap."""
+    try:
+        api(f"repos/{repository}/labels/continuum")
+    except (c.Invalid, json.JSONDecodeError, OSError):
+        return False
+    try:
+        command("gh", "api", f"repos/{repository}/issues/{number}/labels",
+                "--method", "POST", "-f", "labels[]=continuum")
+    except (c.Invalid, json.JSONDecodeError, OSError):
+        return False
+    return True
+
+
+def label(args):
+    repository, number = identity(args.pr)
+    apply_continuum_label(repository, number)
+
+
 def assert_posted(args, claim_id=None, released=False, released_sha=None):
     _, _, pr, state = state_for(args.pr)
     c.require(not state.conflict, "a competing record appeared; stop all writes")
@@ -147,6 +166,9 @@ def main():
         if name == "release":
             item.add_argument("--claim", required=True)
         item.set_defaults(function=function)
+    item = sub.add_parser("label", help="best-effort apply an existing continuum label")
+    item.add_argument("--pr", required=True)
+    item.set_defaults(function=label)
     item = sub.add_parser("recover")
     item.add_argument("--pr", required=True)
     item.add_argument("--confirmation", required=True)

@@ -158,5 +158,34 @@ class LeaseRecordTests(unittest.TestCase):
         verify.assert_called_once_with(args, claim_id=CLAIM, released=True, released_sha=SHA)
 
 
+class BootstrapLabelTests(unittest.TestCase):
+    def test_existing_label_is_added_with_additive_labels_endpoint(self):
+        with patch.object(client, "api", return_value={"name": "continuum"}) as api, \
+                patch.object(client, "command", return_value="[]") as command:
+            self.assertTrue(client.apply_continuum_label("owner/project", 42))
+        api.assert_called_once_with("repos/owner/project/labels/continuum")
+        command.assert_called_once_with(
+            "gh", "api", "repos/owner/project/issues/42/labels",
+            "--method", "POST", "-f", "labels[]=continuum")
+
+    def test_missing_or_unreadable_label_does_not_block_bootstrap(self):
+        with patch.object(client, "api", side_effect=c.Invalid("not found")) as api, \
+                patch.object(client, "command") as command:
+            self.assertFalse(client.apply_continuum_label("owner/project", 42))
+        api.assert_called_once_with("repos/owner/project/labels/continuum")
+        command.assert_not_called()
+
+    def test_label_application_failure_does_not_block_bootstrap(self):
+        with patch.object(client, "api", return_value={"name": "continuum"}), \
+                patch.object(client, "command", side_effect=c.Invalid("forbidden")):
+            self.assertFalse(client.apply_continuum_label("owner/project", 42))
+
+    def test_label_command_accepts_pr_url_and_swallows_lookup_failure(self):
+        args = type("Args", (), {"pr": "https://github.com/owner/project/pull/42"})()
+        with patch.object(client, "apply_continuum_label", return_value=False) as apply:
+            client.label(args)
+        apply.assert_called_once_with("owner/project", 42)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -3,7 +3,7 @@
 import re
 from dataclasses import dataclass, field
 
-VERSION = "0.6.0"
+VERSION = "0.6.1"
 COMMENT_ID = re.compile(r"[1-9][0-9]*\Z")
 SHA = re.compile(r"[0-9a-f]{40}\Z")
 
