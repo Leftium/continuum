@@ -28,7 +28,8 @@ builds and Pages setup.
 Read accepted-base policy and project blockers. Claim the Draft PR before
 product writes, implement and verify under that lease, then release with the
 exact shared HEAD SHA. Mark the PR Ready for native GitHub review and checks.
-Merge requires human authority.
+Inspect the current worktree first: switch to the exact PR head if it is clean,
+or preserve local work in a separate worktree. Merge requires human authority.
 
 Use `python3 scripts/continuum.py status --pr <full-pr-url>` to inspect current
 lease state. See the [client guide](docs/client.md) for claim, release, and

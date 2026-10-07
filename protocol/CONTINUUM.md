@@ -32,20 +32,29 @@ ordinary comment.
 
 ## Normal work
 
-1. Read the PR, its pinned protocol, accepted-base policy, and coordination
-   comments. A closed PR or uncertain/conflicting state stops writes.
-2. While the PR is open, Draft, and has no active lease, post `claim`.
-3. Implement, verify, commit, and push under that lease.
-4. Reread the PR head and post `release <claim-comment-id> <full-head-sha>`
+1. Read the PR, its pinned protocol, and coordination comments. A closed PR or
+   uncertain/conflicting state stops writes.
+2. Establish a workspace at the exact shared PR head, then read project policy
+   from the selected base/head. Unrelated checkout-local pointers are not
+   authority. If the current worktree has no staged, unstaged, or untracked
+   changes and the branch is not checked out elsewhere, fetch and switch to it.
+   Otherwise preserve local work and reuse a safe target worktree or create a
+   detached worktree at the exact PR HEAD. Push only to the authorized PR head
+   ref.
+3. While the PR is open, Draft, and has no active lease, post `claim`.
+4. Implement, verify, commit, and push under that lease.
+5. Reread the PR head and post `release <claim-comment-id> <full-head-sha>`
    only when it matches the clean local HEAD.
-5. Mark the PR Ready. GitHub reviews, checks, and a human-authorized merge
+6. Mark the PR Ready. GitHub reviews, checks, and a human-authorized merge
    finish the work.
 
 Claims are exclusive. A claim while another is active or competing live claims
 block product writes. A release clears only its matching sole active claim. A
 stale, wrong, or unmatched release never clears another claim. Malformed
 protocol state and untrusted records stop writes until owner recovery or human
-reconciliation.
+reconciliation. Stop for an actual coordination or authority conflict, dirty
+work that cannot be preserved safely, inability to establish the target
+workspace, or uncertainty about the authorized push destination.
 
 ## Recovery
 

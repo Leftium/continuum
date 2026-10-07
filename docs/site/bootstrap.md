@@ -32,14 +32,14 @@ human authority.
 Read the protocol and client instructions from the exact resolved release
 commit before writing.
 
-1. Read the selected-base policy and blockers, then create a fresh work branch and open a Draft PR with an ordinary description.
+1. Create a fresh work branch from the selected base, then read its policy and blockers. Open a Draft PR with an ordinary description.
 2. Add the immutable protocol pin as the PR's only Continuum contract, using this exact form:
 
    `Continuum: Leftium/continuum@<40-character-commit>`
 
    If GitHub requires a differing head before it permits a Draft PR, an empty commit is sufficient.
-3. Read the PR, pinned protocol, current lease, and push destination. While the PR is Draft and no lease is active, post a whole-comment `claim` record. Its GitHub comment ID is the lease identity.
-4. Inspect the current worktree. If clean and the PR branch is not checked out elsewhere, fetch and check out its exact head. Otherwise preserve local work and use an isolated worktree at that head. A different starting branch alone is not a reason to stop.
+3. Read the PR, pinned protocol, current lease, and push destination. Inspect staged, unstaged, and untracked files. If the worktree is clean and the PR branch is not checked out elsewhere, fetch and check out its exact head. Otherwise preserve local work and reuse a safe target worktree or create a detached worktree at that exact head. Read policy from the selected base/head after moving; an unrelated checkout's pointer is not authority. Push a detached worktree explicitly to the authorized PR head ref. A different starting branch alone is not a reason to stop.
+4. While the PR is Draft and no lease is active, post a whole-comment `claim` record. Its GitHub comment ID is the lease identity.
 5. Implement, verify, commit, and push under that lease. Commits need no coordination events.
 6. Reread the pushed head, then post `release <claim-comment-id> <full-head-sha>` when clean local HEAD matches it.
 7. Mark the PR Ready for native GitHub review and checks. A human authorizes merge.

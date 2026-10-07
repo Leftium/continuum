@@ -18,11 +18,10 @@ comments and prints the active claim comment IDs.
 
 ## Bootstrap
 
-After reading the selected base's policy and blockers, create a fresh branch
-from that base and open a Draft PR with an ordinary description and one
-immutable protocol pin. Do not add a temporary target-repository file. If
-GitHub requires a different head commit before it allows a Draft PR, an empty
-commit is enough:
+Create a fresh branch from the selected base, then read its policy and
+blockers. Open a Draft PR with an ordinary description and one immutable
+protocol pin. Do not add a temporary target-repository file. If GitHub requires
+a different head commit before it allows a Draft PR, an empty commit is enough:
 
 ```sh
 git switch -c feature-name origin/main
@@ -33,8 +32,8 @@ gh pr create --draft --base main --head feature-name \
   --body $'Describe the work here.\n\nContinuum: Leftium/continuum@<40-character-commit>'
 ```
 
-Replace the placeholder with the exact source commit. Claim the PR before
-implementation writes, then switch to and verify its exact head branch.
+Replace the placeholder with the exact source commit. Inspect the current
+worktree and establish the PR's exact target workspace before claiming it.
 
 ```sh
 python3 scripts/continuum.py status --pr https://github.com/owner/project/pull/42
@@ -42,20 +41,34 @@ python3 scripts/continuum.py status --pr https://github.com/owner/project/pull/4
 
 ## Claim, work, and release
 
-Claim while the PR is open and Draft, with no active lease:
+Before claiming, inspect staged, unstaged, and untracked files. Read policy from
+the PR's selected base and head after moving to its target workspace; branch-local
+pointers or instructions from an unrelated checkout are not authority. If the
+worktree is clean and the PR branch is not checked out elsewhere, fetch and
+check out the exact PR head. If switching would disturb local work or the branch
+is already checked out elsewhere, preserve that state and reuse a safe target
+worktree or create a detached worktree at the exact PR HEAD. A different
+starting branch alone is not a reason to stop.
+
+For a detached worktree, push explicitly to the authorized PR head ref, for
+example:
+
+```sh
+git push origin HEAD:refs/heads/feature-name
+```
+
+Stop only for an actual coordination or authority conflict, dirty work that
+cannot be preserved safely, inability to establish the target workspace, or
+uncertainty about the authorized push destination. Then claim while the PR is
+open and Draft, with no active lease:
 
 ```sh
 python3 scripts/continuum.py claim --pr https://github.com/owner/project/pull/42
 ```
 
 The command prints the created GitHub comment ID. That ID is the lease
-identity. Before product writes, inspect the current worktree, including
-untracked files. If it is clean and the PR branch is not checked out elsewhere,
-fetch and check out the exact PR head. If switching would disturb local work or
-the branch is already checked out elsewhere, preserve that state and use an
-isolated worktree at the exact PR head. A different starting branch alone is
-not a reason to stop. Implement, test, commit, and push using the repository's
-ordinary workflow.
+identity. Implement, test, commit, and push using the repository's ordinary
+workflow.
 
 After the shared PR head matches the clean local HEAD, release with the claim
 comment ID:
