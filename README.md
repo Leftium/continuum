@@ -4,8 +4,10 @@ Continuum is a GitHub-native workflow for coordinating coding agents and humans
 across long-running software projects.
 
 The 0.6 design uses GitHub comment IDs as write-lease identities. A normal PR
-uses two coordination comments: `claim` before product writes, then `release`
-with that claim comment ID and the exact full shared HEAD SHA. GitHub
+uses two coordination comments in 0.6.2: `This PR was claimed` before product
+writes, then `This PR's claim <claim-comment-id> was released at <full-head-sha>`.
+The claim comment ID identifies the lease; the full SHA identifies the shared
+repository state at release. GitHub
 Draft/Ready state, reviews, checks, and a human-authorized merge handle the
 rest. The protocol has no JSON PR-body contract, target-repository pointer, or
 cleanup lifecycle.
@@ -16,7 +18,13 @@ authenticated `gh`. It does not install files in a target repository.
 
 Continuum 0.6 is incompatible with earlier versions. Existing PRs keep their
 exact pinned interpreter and history. New work uses the published stable 0.6
-release.
+release. The sentence records and linked protocol pins begin with 0.6.2;
+use them for new PRs only after that stable release is published. The client
+continues to parse and emit the original records for 0.6.0/0.6.1 pins.
+
+Prefer Summary, Changes, Verification, and optional Follow-ups when they make
+the PR body easier to skim. Link the issue or spec for scope and acceptance
+criteria. See the [description example](docs/client.md#pr-description).
 
 The public documentation site at
 [leftium.github.io/continuum](https://leftium.github.io/continuum/) documents the

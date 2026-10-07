@@ -1,20 +1,54 @@
 # Using the reference client
 
-Continuum 0.6.1 uses Python 3.9+, Git, and authenticated `gh`. The client does
+Continuum 0.6.2 uses Python 3.9+, Git, and authenticated `gh`. The client does
 not install files in a target repository. Existing PRs remain on the exact
 protocol version pinned in each PR.
 
 ## Pin and inspect
 
-New 0.6 PRs use an ordinary Markdown description and one immutable protocol
+New 0.6.2 PRs use an ordinary Markdown description and one immutable protocol
 pin:
 
-`Continuum: Leftium/continuum@<40-character-commit>`
+`Continuum: [Leftium/continuum@<short-commit>](https://github.com/Leftium/continuum/blob/<40-character-commit>/protocol/CONTINUUM.md)`
+
+The visible commit must match a 7-40-character prefix of the full lowercase
+SHA in the link target. The client validates the repository, SHA, and exact
+canonical path before fetching. Plain `Continuum: Leftium/continuum@<40-character-commit>`
+pins remain accepted.
 
 The client trusts `Leftium/continuum` and fetches
 `protocol/CONTINUUM.md` at that exact commit. Read accepted-base policy and
 project blockers before work. The client reconstructs lease state from GitHub
 comments and prints the active claim comment IDs.
+
+## PR description
+
+Use sections when they make the result easier to scan. Not every PR needs all
+of them; Follow-ups is optional. Keep scope and acceptance criteria in the
+linked issue or spec. The PR body explains the result and verification rather
+than copying the full spec. These headings are guidance, not machine state.
+
+```md
+Closes #123.
+
+## Summary
+
+Explain the concrete change and resulting behavior.
+
+## Changes
+
+- Describe the important implementation or result.
+
+## Verification
+
+- Record relevant checks and their results.
+
+## Follow-ups
+
+- Optional deferred work or known boundary.
+
+Continuum: [Leftium/continuum@<short-commit>](https://github.com/Leftium/continuum/blob/<40-character-commit>/protocol/CONTINUUM.md)
+```
 
 ## Bootstrap
 
@@ -29,12 +63,13 @@ git commit --allow-empty -m 'chore: start Continuum PR'
 git push -u origin feature-name
 pr_url=$(gh pr create --draft --base main --head feature-name \
   --title 'Implement the adopted change' \
-  --body $'Describe the work here.\n\nContinuum: Leftium/continuum@<40-character-commit>')
+  --body $'Describe the work here.\n\nContinuum: [Leftium/continuum@<short-commit>](https://github.com/Leftium/continuum/blob/<40-character-commit>/protocol/CONTINUUM.md)')
 python3 scripts/continuum.py label --pr "$pr_url"
 ```
 
-Replace the placeholder with the exact source commit. The label command adds
-the existing `continuum` label when available. It never creates the label, and
+Replace both placeholders with the exact source commit and its matching short
+prefix. New PRs use this format only after stable 0.6.2 is published.
+The label command adds the existing `continuum` label when available. It never creates the label, and
 lookup or application errors do not affect PR creation. The label is discovery
 metadata only. PR creation and planning leave coordination comments empty; do
 not claim until the implementation writer is about to make product-repository
@@ -92,6 +127,21 @@ shared HEAD after push. It does not require a particular local branch name. The
 release contains the full 40-character HEAD SHA and is reread before success
 is reported. Then use GitHub's native Ready transition, review, checks, and
 human-authorized merge.
+
+The CLI verbs remain `claim`, `release`, and `recover`. On a 0.6.2 PR they
+emit these whole-comment records:
+
+```text
+This PR was claimed
+This PR's claim <claim-comment-id> was released at <full-head-sha>
+This PR was recovered | <owner confirmation, stopped writers, and unshared-work disposition>
+```
+
+PRs pinned to 0.6.0 or 0.6.1 retain their plain full-SHA pins and original
+`claim`, `release <claim-comment-id> <full-head-sha>`, and `recover | <confirmation>`
+records. The client fetches the pinned protocol version and uses that grammar
+for both parsing and emission. Do not rewrite an active PR's pin or history
+when a new version is released.
 
 ## Conflicts and abandoned leases
 

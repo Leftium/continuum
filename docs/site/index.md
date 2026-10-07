@@ -17,11 +17,18 @@ with no Python package dependencies.
 
 The supported stable release is
 [v0.6.1](https://github.com/Leftium/continuum/releases/tag/v0.6.1). Resolve it
-to its exact commit before using the protocol. New PRs pin it as
+to its exact commit before using the protocol. PRs on 0.6.1 pin it as
 `Continuum: Leftium/continuum@<40-character-commit>`. Read the [canonical
 protocol](https://github.com/Leftium/continuum/blob/v0.6.1/protocol/CONTINUUM.md)
 and [matching client instructions](https://github.com/Leftium/continuum/blob/v0.6.1/docs/client.md)
 from that exact commit.
+
+The 0.6.2 source introduces standalone sentences such as `This PR was claimed`
+and `This PR's claim <claim-comment-id> was released at <full-head-sha>`, plus
+clickable pins to the exact protocol file. Use these for new PRs only after
+stable 0.6.2 is published; existing pins retain their original record grammar.
+The [bootstrap guide](bootstrap.md) explains that release boundary and the
+recommended PR-body sections.
 
 This site is evergreen guidance. The published release and version-pinned
 source remain authoritative. An active PR keeps its protocol pin if a newer
