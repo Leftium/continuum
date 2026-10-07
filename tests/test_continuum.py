@@ -95,16 +95,18 @@ class LeaseRecordTests(unittest.TestCase):
         self.assertFalse(state.conflict)
         self.assertEqual(state.active, {})
 
-    def test_client_stops_pagination_at_latest_recovery_and_preserves_comment_ids(self):
+    def test_client_keeps_comments_after_latest_recovery_in_api_order(self):
         recovery = {"id": 8, "body": "recover | All writers stopped; work inventoried",
                     "user": {"login": "leftium"}, "author_association": "OWNER"}
         claim = {"id": 9, "body": "claim", "user": {"login": "writer"},
                  "author_association": "MEMBER"}
-        with patch.object(client, "command", return_value=json.dumps([claim, recovery])) as command:
-            comments = client.read_comments("owner/project", 42, "author")
+        before = {"id": 7, "body": "claim", "user": {"login": "writer"},
+                  "author_association": "MEMBER"}
+        with patch.object(client, "command", side_effect=[json.dumps([before, recovery, claim]), "[]"]) as command:
+            comments = client.read_comments("owner/project", 42)
         self.assertEqual([item["id"] for item in comments], [8, 9])
         self.assertEqual(comments[0]["body"], recovery["body"])
-        command.assert_called_once()
+        self.assertEqual(command.call_count, 2)
 
     def test_only_repository_owner_can_recover(self):
         with self.assertRaises(c.Invalid):

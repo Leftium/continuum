@@ -50,25 +50,25 @@ def pinned_protocol(pr):
     return source
 
 
-def read_comments(repository, number, pr_author):
-    """Read newest first and stop at the latest owner recovery boundary."""
-    newest_first = []
+def read_comments(repository, number):
+    """Read comments in API order, retaining only records after latest recovery."""
+    records = []
     page = 1
     while True:
         items = json.loads(command("gh", "api", f"repos/{repository}/issues/{number}/comments"
-                                   f"?per_page=100&sort=created&direction=desc&page={page}"))
+                                   f"?per_page=100&page={page}"))
         if not items:
-            return list(reversed(newest_first))
+            return records
         for item in items:
             comment = {"id": item.get("id"), "body": item.get("body") or "",
                        "author": (item.get("user") or {}).get("login", ""),
                        "author_association": item.get("author_association", "")}
-            newest_first.append(comment)
-            record = c.parse_comment(comment["body"], comment["author"],
-                                     comment["author_association"], pr_author,
-                                     comment["id"])
-            if record and record["action"] == "recover":
-                return list(reversed(newest_first))
+            if (re.fullmatch(r"recover \| ([^\r\n|]+)", comment["body"]) and
+                    comment["body"].split("|", 1)[1].strip() and
+                    comment["author_association"] == "OWNER"):
+                records = [comment]
+            else:
+                records.append(comment)
         page += 1
 
 
@@ -76,7 +76,7 @@ def state_for(url, pr=None):
     repository, number = identity(url)
     pr = pr or read_pr(url)
     pinned_protocol(pr)
-    comments = read_comments(repository, number, pr["user"]["login"])
+    comments = read_comments(repository, number)
     state = c.reconstruct(comments, pr["user"]["login"])
     return repository, number, pr, state
 
