@@ -50,7 +50,7 @@ fresh claim before product-repository writes.
 1. Create and push a fresh work branch from the selected base, then read its policy and blockers.
 2. Add the immutable protocol pin as the PR's only Continuum contract, using this linked form (replace both commit placeholders):
 
-   `Continuum: [Leftium/continuum@<short-commit>](https://github.com/Leftium/continuum/blob/<40-character-commit>/protocol/CONTINUUM.md)`
+   `This PR follows the [Continuum protocol at <short-commit>](https://github.com/Leftium/continuum/blob/<40-character-commit>/protocol/CONTINUUM.md).`
 
    If GitHub requires a differing head before it permits a Draft PR, an empty commit is sufficient.
 3. Open the Draft PR and run the best-effort label command immediately afterward:
@@ -58,7 +58,7 @@ fresh claim before product-repository writes.
    ```sh
    pr_url=$(gh pr create --draft --base main --head feature-name \
      --title 'Implement the adopted change' \
-     --body $'Describe the work here.\n\nContinuum: [Leftium/continuum@<short-commit>](https://github.com/Leftium/continuum/blob/<40-character-commit>/protocol/CONTINUUM.md)')
+     --body $'Describe the work here.\n\nThis PR follows the [Continuum protocol at <short-commit>](https://github.com/Leftium/continuum/blob/<40-character-commit>/protocol/CONTINUUM.md).')
    python3 scripts/continuum.py label --pr "$pr_url"
    ```
 

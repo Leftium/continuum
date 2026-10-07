@@ -18,7 +18,7 @@ authenticated `gh`. It does not install files in a target repository.
 
 Continuum 0.6 is incompatible with earlier versions. Existing PRs keep their
 exact pinned interpreter and history. New work uses the published stable 0.6
-release. The sentence records and linked protocol pins begin with 0.6.2;
+release. The sentence records and explanatory linked protocol pins begin with 0.6.2;
 use them for new PRs only after that stable release is published. The client
 continues to parse and emit the original records for 0.6.0/0.6.1 pins.
 

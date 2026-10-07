@@ -12,8 +12,12 @@ import continuum_core as c
 TRUSTED_REPOSITORY = "Leftium/continuum"
 PIN = re.compile(r"Continuum: Leftium/continuum@([0-9a-f]{40})")
 LINKED_PIN = re.compile(
-    r"Continuum: \[Leftium/continuum@([0-9a-f]{7,40})\]"
+    r"Continuum: \[Leftium/continuum@[^\]\r\n]+\]"
     r"\(https://github\.com/Leftium/continuum/blob/([0-9a-f]{40})/protocol/CONTINUUM\.md\)"
+)
+PROSE_PIN = re.compile(
+    r"This PR follows the \[Continuum protocol at [^\]\r\n]+\]"
+    r"\(https://github\.com/Leftium/continuum/blob/([0-9a-f]{40})/protocol/CONTINUUM\.md\)\."
 )
 
 
@@ -41,16 +45,13 @@ def read_pr(url):
 
 
 def resolve_protocol(pr):
-    lines = [line for line in (pr.get("body") or "").splitlines() if line.startswith("Continuum:")]
+    lines = [line for line in (pr.get("body") or "").splitlines() if line.startswith(("Continuum:", "This PR follows the ["))]
     c.require(len(lines) == 1, "PR must contain one immutable Continuum 0.6 protocol pin")
     plain = PIN.fullmatch(lines[0])
-    linked = LINKED_PIN.fullmatch(lines[0])
+    linked = PROSE_PIN.fullmatch(lines[0]) or LINKED_PIN.fullmatch(lines[0])
     c.require(plain or linked, "invalid immutable Continuum protocol pin")
-    if linked:
-        display, source = linked.groups()
-        c.require(source.startswith(display), "pin display does not match its immutable target")
-    else:
-        source = plain.group(1)
+    # Display text is presentation; only the immutable URL establishes provenance.
+    source = (linked or plain).group(1)
     content = command("gh", "api", f"repos/{TRUSTED_REPOSITORY}/contents/protocol/CONTINUUM.md?ref={source}",
                       "-H", "Accept: application/vnd.github.raw+json")
     match = re.match(r"---\ncontinuum: ([0-9]+)\.([0-9]+)\.([0-9]+)\nartifact: protocol/CONTINUUM\.md\n---\n", content)

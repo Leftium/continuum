@@ -270,19 +270,19 @@ class ProtocolPinTests(unittest.TestCase):
 
     def test_linked_pin_fetches_full_sha_from_canonical_target(self):
         protocol = "---\ncontinuum: 0.6.2\nartifact: protocol/CONTINUUM.md\n---\n"
-        body = f"Continuum: [Leftium/continuum@{SHA[:8]}](https://github.com/Leftium/continuum/blob/{SHA}/protocol/CONTINUUM.md)"
+        body = f"This PR follows the [Continuum protocol at {SHA[:7]}](https://github.com/Leftium/continuum/blob/{SHA}/protocol/CONTINUUM.md)."
         with patch.object(client, "command", return_value=protocol) as command:
             self.assertEqual(client.resolve_protocol({"body": body}), (SHA, "0.6.2"))
         command.assert_called_once_with("gh", "api", f"repos/Leftium/continuum/contents/protocol/CONTINUUM.md?ref={SHA}",
                                         "-H", "Accept: application/vnd.github.raw+json")
 
-    def test_invalid_link_targets_displays_and_duplicate_pins_fail_before_fetch(self):
-        valid = f"Continuum: [Leftium/continuum@{SHA[:8]}](https://github.com/Leftium/continuum/blob/{SHA}/protocol/CONTINUUM.md)"
+    def test_invalid_link_targets_and_duplicate_pins_fail_before_fetch(self):
+        valid = f"This PR follows the [Continuum protocol at {SHA[:7]}](https://github.com/Leftium/continuum/blob/{SHA}/protocol/CONTINUUM.md)."
         invalid = [valid.replace("https://", "http://"), valid.replace("github.com", "github.com.evil.test"),
                    valid.replace("Leftium/continuum/blob", "stranger/continuum/blob"),
                    valid.replace("protocol/CONTINUUM.md", "docs/client.md"),
                    valid.replace(f"blob/{SHA}", "blob/main"), valid.replace(f"blob/{SHA}", f"blob/{SHA[:8]}"),
-                   valid.replace(f"@{SHA[:8]}", "@bbbbbbbb"), valid + " trailing text",
+                   valid.replace(f"blob/{SHA}", f"blob/{SHA.upper()}"), valid + " trailing text",
                    valid + "\n" + valid, valid + "\nContinuum: Leftium/continuum@" + SHA,
                    valid + "\nContinuum: malformed", ""]
         for body in invalid:
@@ -291,8 +291,27 @@ class ProtocolPinTests(unittest.TestCase):
                     client.pinned_protocol({"body": body})
                 command.assert_not_called()
 
+    def test_display_text_never_supplies_or_overrides_the_source_commit(self):
+        protocol = "---\ncontinuum: 0.6.2\nartifact: protocol/CONTINUUM.md\n---\n"
+        for display in (SHA[:7], "bbbbbbb", "main", "a" * 40):
+            for body in (f"This PR follows the [Continuum protocol at {display}](https://github.com/Leftium/continuum/blob/{SHA}/protocol/CONTINUUM.md).",
+                         f"Continuum: [Leftium/continuum@{display}](https://github.com/Leftium/continuum/blob/{SHA}/protocol/CONTINUUM.md)"):
+                with self.subTest(body=body), patch.object(client, "command", return_value=protocol) as command:
+                    self.assertEqual(client.resolve_protocol({"body": body}), (SHA, "0.6.2"))
+                    self.assertIn(f"ref={SHA}", command.call_args.args[2])
+
+    def test_display_cannot_make_a_mutable_or_untrusted_target_valid(self):
+        valid_display = f"This PR follows the [Continuum protocol at {SHA}]"
+        for target in (f"https://github.com/stranger/continuum/blob/{SHA}/protocol/CONTINUUM.md",
+                       "https://github.com/Leftium/continuum/blob/main/protocol/CONTINUUM.md",
+                       f"https://github.com/Leftium/continuum/blob/{SHA}/README.md"):
+            with self.subTest(target=target), patch.object(client, "command") as command:
+                with self.assertRaises(c.Invalid):
+                    client.resolve_protocol({"body": f"{valid_display}({target})."})
+                command.assert_not_called()
+
     def test_linked_pin_cannot_reinterpret_an_old_protocol(self):
-        body = f"Continuum: [Leftium/continuum@{SHA[:8]}](https://github.com/Leftium/continuum/blob/{SHA}/protocol/CONTINUUM.md)"
+        body = f"This PR follows the [Continuum protocol at {SHA[:7]}](https://github.com/Leftium/continuum/blob/{SHA}/protocol/CONTINUUM.md)."
         protocol = "---\ncontinuum: 0.6.1\nartifact: protocol/CONTINUUM.md\n---\n"
         with patch.object(client, "command", return_value=protocol):
             with self.assertRaises(c.Invalid):

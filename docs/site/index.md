@@ -25,7 +25,8 @@ from that exact commit.
 
 The 0.6.2 source introduces standalone sentences such as `This PR was claimed`
 and `This PR's claim <claim-comment-id> was released at <full-head-sha>`, plus
-clickable pins to the exact protocol file. Use these for new PRs only after
+explanatory pins such as `This PR follows the [Continuum protocol at <short-commit>](https://github.com/Leftium/continuum/blob/<40-character-commit>/protocol/CONTINUUM.md).`
+The link target retains the full immutable SHA; its visible text is presentation. Use these for new PRs only after
 stable 0.6.2 is published; existing pins retain their original record grammar.
 The [bootstrap guide](bootstrap.md) explains that release boundary and the
 recommended PR-body sections.

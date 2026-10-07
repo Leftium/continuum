@@ -6,13 +6,13 @@ artifact: protocol/CONTINUUM.md
 # Continuum 0.6
 
 A pull request is the work unit. Its ordinary Markdown description explains
-the change. One line pins the immutable protocol source:
+the change. One sentence links to the immutable protocol source:
 
-`Continuum: [Leftium/continuum@<short-commit>](https://github.com/Leftium/continuum/blob/<40-character-commit>/protocol/CONTINUUM.md)`
+`This PR follows the [Continuum protocol at <short-commit>](https://github.com/Leftium/continuum/blob/<40-character-commit>/protocol/CONTINUUM.md).`
 
-The visible commit is a 7-40-character prefix of the full lowercase SHA in
-the link target. The client validates the trusted repository, full immutable
-SHA, and exact canonical file path.
+Use a short commit prefix for the visible text. The client treats that text
+as presentation and validates provenance only from the link target: the trusted
+repository, full immutable lowercase SHA, and exact canonical file path.
 
 The client trusts `Leftium/continuum` and fetches its canonical
 `protocol/CONTINUUM.md`. The fetched file must declare the supported version.

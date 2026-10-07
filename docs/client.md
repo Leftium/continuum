@@ -9,11 +9,12 @@ protocol version pinned in each PR.
 New 0.6.2 PRs use an ordinary Markdown description and one immutable protocol
 pin:
 
-`Continuum: [Leftium/continuum@<short-commit>](https://github.com/Leftium/continuum/blob/<40-character-commit>/protocol/CONTINUUM.md)`
+`This PR follows the [Continuum protocol at <short-commit>](https://github.com/Leftium/continuum/blob/<40-character-commit>/protocol/CONTINUUM.md).`
 
-The visible commit must match a 7-40-character prefix of the full lowercase
-SHA in the link target. The client validates the repository, SHA, and exact
-canonical path before fetching. Plain `Continuum: Leftium/continuum@<40-character-commit>`
+Use a short commit prefix for the visible text. Machine validation comes only
+from the link target: the trusted repository, full 40-character lowercase SHA,
+and exact canonical path. The client does not rely on the abbreviated display
+text for provenance. Plain `Continuum: Leftium/continuum@<40-character-commit>`
 pins remain accepted.
 
 The client trusts `Leftium/continuum` and fetches
@@ -47,7 +48,7 @@ Explain the concrete change and resulting behavior.
 
 - Optional deferred work or known boundary.
 
-Continuum: [Leftium/continuum@<short-commit>](https://github.com/Leftium/continuum/blob/<40-character-commit>/protocol/CONTINUUM.md)
+This PR follows the [Continuum protocol at <short-commit>](https://github.com/Leftium/continuum/blob/<40-character-commit>/protocol/CONTINUUM.md).
 ```
 
 ## Bootstrap
@@ -63,12 +64,12 @@ git commit --allow-empty -m 'chore: start Continuum PR'
 git push -u origin feature-name
 pr_url=$(gh pr create --draft --base main --head feature-name \
   --title 'Implement the adopted change' \
-  --body $'Describe the work here.\n\nContinuum: [Leftium/continuum@<short-commit>](https://github.com/Leftium/continuum/blob/<40-character-commit>/protocol/CONTINUUM.md)')
+  --body $'Describe the work here.\n\nThis PR follows the [Continuum protocol at <short-commit>](https://github.com/Leftium/continuum/blob/<40-character-commit>/protocol/CONTINUUM.md).')
 python3 scripts/continuum.py label --pr "$pr_url"
 ```
 
-Replace both placeholders with the exact source commit and its matching short
-prefix. New PRs use this format only after stable 0.6.2 is published.
+Replace both placeholders with the exact source commit and a short
+prefix for display. New PRs use this format only after stable 0.6.2 is published.
 The label command adds the existing `continuum` label when available. It never creates the label, and
 lookup or application errors do not affect PR creation. The label is discovery
 metadata only. PR creation and planning leave coordination comments empty; do
