@@ -10,7 +10,15 @@ from urllib.parse import quote
 import continuum_core as c
 
 TRUSTED_REPOSITORY = "Leftium/continuum"
-PIN = re.compile(r"^Continuum: Leftium/continuum@([0-9a-f]{40})$", re.MULTILINE)
+PIN = re.compile(r"Continuum: Leftium/continuum@([0-9a-f]{40})")
+LINKED_PIN = re.compile(
+    r"Continuum: \[Leftium/continuum@[^\]\r\n]+\]"
+    r"\(https://github\.com/Leftium/continuum/blob/([0-9a-f]{40})/protocol/CONTINUUM\.md\)"
+)
+PROSE_PIN = re.compile(
+    r"This PR follows the \[Continuum protocol at [^\]\r\n]+\]"
+    r"\(https://github\.com/Leftium/continuum/blob/([0-9a-f]{40})/protocol/CONTINUUM\.md\)\."
+)
 
 
 def command(*args):
@@ -36,10 +44,14 @@ def read_pr(url):
     return pr
 
 
-def pinned_protocol(pr):
-    pins = PIN.findall(pr.get("body") or "")
-    c.require(len(pins) == 1, "PR must contain one immutable Continuum 0.6 protocol pin")
-    source = pins[0]
+def resolve_protocol(pr):
+    lines = [line for line in (pr.get("body") or "").splitlines() if line.startswith(("Continuum:", "This PR follows the ["))]
+    c.require(len(lines) == 1, "PR must contain one immutable Continuum 0.6 protocol pin")
+    plain = PIN.fullmatch(lines[0])
+    linked = PROSE_PIN.fullmatch(lines[0]) or LINKED_PIN.fullmatch(lines[0])
+    c.require(plain or linked, "invalid immutable Continuum protocol pin")
+    # Display text is presentation; only the immutable URL establishes provenance.
+    source = (linked or plain).group(1)
     content = command("gh", "api", f"repos/{TRUSTED_REPOSITORY}/contents/protocol/CONTINUUM.md?ref={source}",
                       "-H", "Accept: application/vnd.github.raw+json")
     match = re.match(r"---\ncontinuum: ([0-9]+)\.([0-9]+)\.([0-9]+)\nartifact: protocol/CONTINUUM\.md\n---\n", content)
@@ -47,10 +59,16 @@ def pinned_protocol(pr):
     c.require(match is not None and tuple(map(int, match.groups()))[:2] == current[:2] and
               tuple(map(int, match.groups())) <= current,
               "pinned source is not a supported canonical protocol version")
-    return source
+    version = ".".join(match.groups())
+    c.require(not linked or version == "0.6.2", "linked pins require protocol 0.6.2")
+    return source, version
 
 
-def read_comments(repository, number):
+def pinned_protocol(pr):
+    return resolve_protocol(pr)[0]
+
+
+def read_comments(repository, number, version=c.VERSION):
     """Read comments in API order, retaining only records after latest recovery."""
     records = []
     page = 1
@@ -63,7 +81,7 @@ def read_comments(repository, number):
             comment = {"id": item.get("id"), "body": item.get("body") or "",
                        "author": (item.get("user") or {}).get("login", ""),
                        "author_association": item.get("author_association", "")}
-            if (re.fullmatch(r"recover \| ([^\r\n|]+)", comment["body"]) and
+            if (re.fullmatch(re.escape(c.grammar(version)[3]) + r" \| ([^\r\n|]+)", comment["body"]) and
                     comment["body"].split("|", 1)[1].strip() and
                     comment["author_association"] == "OWNER"):
                 records = [comment]
@@ -75,9 +93,9 @@ def read_comments(repository, number):
 def state_for(url, pr=None):
     repository, number = identity(url)
     pr = pr or read_pr(url)
-    pinned_protocol(pr)
-    comments = read_comments(repository, number)
-    state = c.reconstruct(comments, pr["user"]["login"])
+    _, version = resolve_protocol(pr)
+    comments = read_comments(repository, number, version=version)
+    state = c.reconstruct(comments, pr["user"]["login"], version=version)
     return repository, number, pr, state
 
 
@@ -127,7 +145,7 @@ def claim(args):
     repository, number, pr, state = state_for(args.pr)
     c.require(pr["state"] == "open" and pr["draft"], "claim requires an open Draft PR")
     c.require(not state.conflict and not state.active, "another or conflicting lease is active")
-    comment = post(repository, number, c.render("claim"))
+    comment = post(repository, number, c.render("claim", version=state.version))
     c.require(isinstance(comment, dict) and comment.get("id") is not None,
               "GitHub claim response did not include its comment ID")
     claim_id = str(comment["id"])
@@ -143,7 +161,7 @@ def release(args):
     sha = command("git", "rev-parse", "HEAD").strip()
     c.require(sha == pr["head"]["sha"], "local HEAD differs from shared PR HEAD; push and reread before release")
     c.require(not command("git", "status", "--porcelain"), "release requires a clean worktree")
-    post(repository, number, c.render("release", claim_id=args.claim, sha=sha))
+    post(repository, number, c.render("release", claim_id=args.claim, sha=sha, version=state.version))
     assert_posted(args, claim_id=args.claim, released=True, released_sha=sha)
     print(sha)
 
@@ -155,7 +173,7 @@ def recover(args):
     user = command("gh", "api", "user", "--jq", ".login").strip()
     permission = api(f"repos/{repository}/collaborators/{quote(user, safe='')}/permission")
     c.require(permission.get("role_name") == "admin", "recovery requires repository-owner permission")
-    post(repository, number, c.render_recovery(args.confirmation))
+    post(repository, number, c.render_recovery(args.confirmation, version=state.version))
     _, _, _, updated = state_for(args.pr)
     c.require(not updated.conflict and not updated.active, "recovery did not clear exactly the accepted leases")
 
